@@ -569,6 +569,7 @@ const initProject = async () => {
 // Handle new project - call ontology/generate API
 const handleNewProject = async () => {
   const pending = getPendingUpload()
+  console.log('Process.vue: handleNewProject called, pending.enableNews:', pending.enableNews)
   
   if (!pending.isPending || pending.files.length === 0) {
     error.value = t('process.noFilesReturnHome')
@@ -587,6 +588,8 @@ const handleNewProject = async () => {
       formDataObj.append('files', file)
     })
     formDataObj.append('simulation_requirement', pending.simulationRequirement)
+    formDataObj.append('enable_news', pending.enableNews)
+    console.log('Process.vue: formDataObj enable_news:', formDataObj.get('enable_news'))
     
     // Call ontology generation API
     const response = await generateOntology(formDataObj)
@@ -685,7 +688,10 @@ const startBuildGraph = async () => {
       message: t('process.startingGraphBuild')
     }
     
-    const response = await buildGraph({ project_id: currentProjectId.value })
+    const response = await buildGraph({ 
+      project_id: currentProjectId.value,
+      enable_news: projectData.value?.enable_news
+    })
     
     if (response.success) {
       buildProgress.value.message = t('process.graphBuildTaskStarted')

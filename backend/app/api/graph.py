@@ -156,9 +156,11 @@ def generate_ontology():
         project_name = request.form.get('project_name', 'Unnamed Project')
         additional_context = request.form.get('additional_context', '')
         language = request.form.get('language', Config.LANGUAGE)
+        enable_news = request.form.get('enable_news', 'true').lower() == 'true'
 
         logger.debug(f"Project name: {project_name}")
         logger.debug(f"Simulation requirement: {simulation_requirement[:100]}...")
+        logger.debug(f"Enable news: {enable_news}")
 
         if not simulation_requirement:
             return jsonify({
@@ -177,6 +179,7 @@ def generate_ontology():
         # Create the project.
         project = ProjectManager.create_project(name=project_name)
         project.simulation_requirement = simulation_requirement
+        project.enable_news = enable_news
         logger.info(f"Created project: {project.project_id}")
 
         # Save the files and extract text.
@@ -342,10 +345,15 @@ def build_graph():
         graph_name = data.get('graph_name', project.name or 'MiroFish Graph')
         chunk_size = data.get('chunk_size', project.chunk_size or Config.DEFAULT_CHUNK_SIZE)
         chunk_overlap = data.get('chunk_overlap', project.chunk_overlap or Config.DEFAULT_CHUNK_OVERLAP)
+        enable_news = data.get('enable_news', project.enable_news)
+        print(f"DEBUG: build_graph - enable_news from request: {data.get('enable_news')}")
+        print(f"DEBUG: build_graph - enable_news from project: {project.enable_news}")
+        print(f"DEBUG: build_graph - resolved enable_news: {enable_news}")
 
         # Persist the project settings.
         project.chunk_size = chunk_size
         project.chunk_overlap = chunk_overlap
+        project.enable_news = enable_news
 
         # Load the extracted text.
         text = ProjectManager.get_extracted_text(project_id)
@@ -420,6 +428,24 @@ def build_graph():
                 )
                 builder.set_ontology(graph_id, ontology)
 
+                # Fetch and add live news if enabled.
+                if enable_news:
+                    task_manager.update_task(
+                        task_id,
+                        message="Fetching and injecting live news...",
+                        progress=20
+                    )
+                    print(f"DEBUG: build_task - enable_news is True, fetching news for query: {project.simulation_requirement}")
+                    news_episode_uuid = builder.fetch_and_add_news(
+                        graph_id, 
+                        query=project.simulation_requirement
+                    )
+                    print(f"DEBUG: build_task - news_episode_uuid result: {news_episode_uuid}")
+                    if news_episode_uuid:
+                        logger.info(f"[{task_id}] Added live news episode: {news_episode_uuid}")
+                        # Wait for news episode to be processed (optional but recommended for consistency)
+                        builder._wait_for_episodes([news_episode_uuid])
+                
                 # Add text batches. The callback signature is (msg, progress_ratio).
                 def add_progress_callback(msg, progress_ratio):
                     progress = 15 + int(progress_ratio * 40)  # 15% - 55%

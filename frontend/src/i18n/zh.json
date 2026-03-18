@@ -44,7 +44,9 @@
     "promptPlaceholder": "// 用自然语言输入模拟或预测需求（例.武大若发布撤销肖某处分的公告，会引发什么舆情走向）",
     "engineBadge": "引擎: MiroFish-V1.0",
     "startEngine": "启动引擎",
-    "initializing": "初始化中..."
+    "initializing": "初始化中...",
+    "newsToggle": "03 / 实时新闻 (Beta)",
+    "newsToggleDesc": "获取并注入实时新闻文章作为初始图谱种子"
   },
   "process": {
     "stepBadge": "STEP 01",

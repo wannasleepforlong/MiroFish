@@ -185,6 +185,22 @@
               </div>
             </div>
 
+            <!-- News toggle area -->
+            <div class="console-section news-section">
+              <div class="console-header">
+                <span class="console-label">{{ t('home.newsToggle') }}</span>
+              </div>
+              <div class="toggle-wrapper" @click="formData.enableNews = !formData.enableNews">
+                <div class="toggle-switch" :class="{ 'is-active': formData.enableNews }">
+                  <div class="toggle-handle"></div>
+                </div>
+                <div class="toggle-info">
+                  <div class="toggle-name">{{ t('home.newsToggle') }}</div>
+                  <div class="toggle-desc">{{ t('home.newsToggleDesc') }}</div>
+                </div>
+              </div>
+            </div>
+
             <!-- Start button -->
             <div class="console-section btn-section">
               <button 
@@ -223,7 +239,8 @@ const toggleLang = () => {
 
 // Form data
 const formData = ref({
-  simulationRequirement: ''
+  simulationRequirement: '',
+  enableNews: true
 })
 
 // File list
@@ -300,9 +317,10 @@ const scrollToBottom = () => {
 const startSimulation = () => {
   if (!canSubmit.value || loading.value) return
   
-  // Store pending upload data
+  console.log('Home.vue: startSimulation called')
+  console.log('Home.value: formData.enableNews:', formData.value.enableNews)
   import('../store/pendingUpload.js').then(({ setPendingUpload }) => {
-    setPendingUpload(files.value, formData.value.simulationRequirement)
+    setPendingUpload(files.value, formData.value.simulationRequirement, formData.value.enableNews)
     
     // Navigate to Process page immediately (use special identifier for new project)
     router.push({
@@ -702,6 +720,68 @@ const startSimulation = () => {
 
 .console-section.btn-section {
   padding-top: 0;
+}
+
+/* News toggle styling */
+.news-section {
+  padding-top: 0;
+}
+
+.toggle-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  cursor: pointer;
+  padding: 10px;
+  border: 1px solid #EEE;
+  transition: all 0.2s;
+}
+
+.toggle-wrapper:hover {
+  background: #FAFAFA;
+  border-color: #DDD;
+}
+
+.toggle-switch {
+  width: 40px;
+  height: 20px;
+  background: #DDD;
+  position: relative;
+  transition: all 0.3s;
+}
+
+.toggle-switch.is-active {
+  background: var(--orange);
+}
+
+.toggle-handle {
+  width: 14px;
+  height: 14px;
+  background: white;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: all 0.3s;
+}
+
+.toggle-switch.is-active .toggle-handle {
+  left: 23px;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-name {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.toggle-desc {
+  font-size: 0.75rem;
+  color: #999;
 }
 
 .console-header {

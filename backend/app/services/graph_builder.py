@@ -17,6 +17,7 @@ from ..config import Config
 from ..models.task import TaskManager, TaskStatus
 from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 from .text_processor import TextProcessor
+from .live_news_fetcher import LiveDataFetcher
 
 
 @dataclass
@@ -497,4 +498,60 @@ class GraphBuilderService:
     def delete_graph(self, graph_id: str):
         """删除图谱"""
         self.client.graph.delete(graph_id=graph_id)
+
+    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 5) -> Optional[str]:
+        """
+        获取实时新闻并添加到图谱作为初始种子
+        """
+        try:
+            print(f"DEBUG: fetch_and_add_news - graph_id: {graph_id}, query: {query}")
+            if not Config.NEWS_API_KEY:
+                print("DEBUG: fetch_and_add_news - NEWS_API_KEY is missing!")
+                return None
+                
+            fetcher = LiveDataFetcher(api_key=Config.NEWS_API_KEY)
+            print(f"DEBUG: fetch_and_add_news - fetching news for query: {query}")
+            # 获取最近7天的新闻 (7 * 24 = 168 hours)
+            response = fetcher.fetch_recent_news(query, hours=168, page_size=limit)
+            
+            news_items = response.get('articles', [])
+            print(f"DEBUG: fetch_and_add_news - found {len(news_items)} articles")
+            if not news_items:
+                return None
+            
+            # 格式化新闻文本
+            report_lines = [
+                f"### LIVE NEWS REPORT: {time.strftime('%Y-%m-%d')} ###",
+                f"Context Query: {query}",
+                ""
+            ]
+            
+            for i, item in enumerate(news_items, 1):
+                report_lines.append(f"ARTICLE {i}:")
+                report_lines.append(f"Title: {item.get('title', 'N/A')}")
+                report_lines.append(f"Source: {item.get('source', {}).get('name', 'N/A')}")
+                report_lines.append(f"Date: {item.get('publishedAt', 'N/A')}")
+                report_lines.append(f"Summary: {item.get('description', 'N/A')}")
+                report_lines.append("")
+                
+            report_lines.append("### END OF NEWS REPORT ###")
+            report_text = "\n".join(report_lines)
+            print(f"DEBUG: fetch_and_add_news - report_text length: {len(report_text)}")
+            
+            # 添加到图谱
+            uuids = self.client.graph.add(
+                graph_id=graph_id,
+                type="text",
+                data=report_text
+            )
+            print(f"DEBUG: fetch_and_add_news - Zep response uuids: {uuids}")
+            
+            if isinstance(uuids, list) and len(uuids) > 0:
+                return uuids[0]
+            return uuids
+        except Exception as e:
+            import logging
+            logger = logging.getLogger('mirofish.graph_builder')
+            logger.error(f"Error fetching/adding live news: {str(e)}")
+            return None
 

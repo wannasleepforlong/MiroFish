@@ -44,7 +44,9 @@
     "promptPlaceholder": "// Describe your simulation or prediction in natural language (e.g. What public opinion trends would emerge if the university reversed its decision?)",
     "engineBadge": "Engine: MiroFish-V1.0",
     "startEngine": "Start Engine",
-    "initializing": "Initializing..."
+    "initializing": "Initializing...",
+    "newsToggle": "03 / Live News (Beta)",
+    "newsToggleDesc": "Fetch and inject real-time news articles as initial graph seeds"
   },
   "process": {
     "stepBadge": "STEP 01",
