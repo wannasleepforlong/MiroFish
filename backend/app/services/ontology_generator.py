@@ -6,6 +6,7 @@
 import json
 from typing import Dict, Any, List, Optional
 from ..utils.llm_client import LLMClient
+from ..config import Config
 
 
 # 本体生成的系统提示词
@@ -162,7 +163,13 @@ class OntologyGenerator:
     """
     
     def __init__(self, llm_client: Optional[LLMClient] = None, language: str = "zh"):
-        self.llm_client = llm_client or LLMClient()
+        # For ontology generation, we explicitly use the legacy single-LLM config
+        # to ensure stability and avoid random provider switching.
+        self.llm_client = llm_client or LLMClient(
+            api_key=Config.LLM_API_KEY,
+            base_url=Config.LLM_BASE_URL,
+            model=Config.LLM_MODEL_NAME
+        )
         self.language = language
 
     def generate(
