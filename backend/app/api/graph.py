@@ -436,9 +436,12 @@ def build_graph():
                         progress=20
                     )
                     print(f"DEBUG: build_task - enable_news is True, fetching news for query: {project.simulation_requirement}")
+                    # Use the extracted text as context for news query generation
+                    context_text = text if text else ProjectManager.get_extracted_text(project_id)
                     news_episode_uuid = builder.fetch_and_add_news(
                         graph_id, 
-                        query=project.simulation_requirement
+                        query=project.simulation_requirement,
+                        context_text=context_text
                     )
                     print(f"DEBUG: build_task - news_episode_uuid result: {news_episode_uuid}")
                     if news_episode_uuid:
