@@ -18,6 +18,7 @@ from ..models.task import TaskManager, TaskStatus
 from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 from .text_processor import TextProcessor
 from .live_news_fetcher import LiveDataFetcher
+from ..utils.llm_client import LLMClient
 
 
 @dataclass
@@ -499,7 +500,45 @@ class GraphBuilderService:
         """删除图谱"""
         self.client.graph.delete(graph_id=graph_id)
 
-    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 5) -> Optional[str]:
+    def _generate_smart_news_queries(self, query: str, context_text: Optional[str] = None, k: int = 3) -> List[str]:
+        """
+        Use an LLM to generate k optimized NewsAPI search queries.
+        """
+        if not context_text:
+            return [query]
+            
+        try:
+            llm = LLMClient()
+            context_snippet = context_text[:2000]
+            
+            system_prompt = "You are an expert at optimizing search queries for the NewsAPI (v2). Respond ONLY with a JSON array of strings."
+            user_prompt = f"""Based on the following simulation requirement and document context, generate exactly {k} distinct, concise NewsAPI search queries that will find relevant live news to contextualize this simulation.
+
+Simulation Requirement: {query}
+
+Document Context:
+{context_snippet}
+
+Return a JSON array of {k} strings. Do not include any other text."""
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            
+            smart_queries = llm.chat_json(messages, temperature=0.3)
+            if isinstance(smart_queries, list):
+                # Filter out empty or non-string results
+                smart_queries = [str(q).strip() for q in smart_queries if q]
+                print(f"DEBUG: _generate_smart_news_queries - generated: {smart_queries}")
+                return smart_queries[:k] if smart_queries else [query]
+            return [query]
+            
+        except Exception as e:
+            print(f"DEBUG: _generate_smart_news_queries - error: {e}")
+            return [query]
+
+    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 5, context_text: Optional[str] = None) -> Optional[str]:
         """
         获取实时新闻并添加到图谱作为初始种子
         """
@@ -510,19 +549,40 @@ class GraphBuilderService:
                 return None
                 
             fetcher = LiveDataFetcher(api_key=Config.NEWS_API_KEY)
-            print(f"DEBUG: fetch_and_add_news - fetching news for query: {query}")
-            # 获取最近7天的新闻 (7 * 24 = 168 hours)
-            response = fetcher.fetch_recent_news(query, hours=168, page_size=limit)
             
-            news_items = response.get('articles', [])
-            print(f"DEBUG: fetch_and_add_news - found {len(news_items)} articles")
-            if not news_items:
+            # Generate multiple smart queries
+            search_queries = self._generate_smart_news_queries(query, context_text, k=3)
+            
+            all_articles = []
+            seen_urls = set()
+            
+            for s_query in search_queries:
+                try:
+                    print(f"DEBUG: fetch_and_add_news - searching for: {s_query}")
+                    # Fetch from last 7 days (168h)
+                    response = fetcher.fetch_recent_news(s_query, hours=168, page_size=limit)
+                    articles = response.get('articles', [])
+                    
+                    for art in articles:
+                        url = art.get('url')
+                        if url and url not in seen_urls:
+                            seen_urls.add(url)
+                            all_articles.append(art)
+                except Exception as e:
+                    print(f"DEBUG: fetch_and_add_news - search failed for '{s_query}': {e}")
+
+            print(f"DEBUG: fetch_and_add_news - total unique articles found: {len(all_articles)}")
+            if not all_articles:
                 return None
+                
+            # Keep only up to the requested limit
+            news_items = all_articles[:limit]
             
             # 格式化新闻文本
             report_lines = [
                 f"### LIVE NEWS REPORT: {time.strftime('%Y-%m-%d')} ###",
-                f"Context Query: {query}",
+                f"Original Requirement: {query}",
+                f"System Queries: {', '.join(search_queries)}",
                 ""
             ]
             
