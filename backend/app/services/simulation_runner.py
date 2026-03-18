@@ -655,6 +655,11 @@ class SimulationRunner:
                                     # 总体时间取两个平台的最大值
                                     state.simulated_hours = max(state.twitter_simulated_hours, state.reddit_simulated_hours)
                                 
+                                # 处理 LLM 信息事件
+                                elif event_type == "llm_info":
+                                    msg = action_data.get("message", "")
+                                    logger.info(f"[{platform.upper()}] {msg}")
+                                
                                 continue
                             
                             action = AgentAction(
