@@ -30,7 +30,7 @@ def _load_llm_configs() -> list[dict]:
     Example entry:
         {
             'index': 1,
-            'api_key': 'PuCOIPJLArd0t6vRHiryJOib7jTapTuA',
+            'api_key': '',
             'base_url': 'https://api.mistral.ai/v1',
             'model_name': 'mistral-small-latest',
         }
