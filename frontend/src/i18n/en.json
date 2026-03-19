@@ -435,5 +435,23 @@
     "graphDataLoaded": "Graph data loaded successfully",
     "graphLoadFailed": "Graph load failed: {error}",
     "viewInit": "InteractionView initialized"
+  },
+  "trends": {
+    "title": "TRENDS ANALYTICS",
+    "actions": "Actions",
+    "agents": "Agents",
+    "intensity": "Activity Intensity",
+    "noData": "No activity data available for visualization.",
+    "acts": "Acts",
+    "round_label": "Round",
+    "post": "Post",
+    "quote": "Quote",
+    "repost": "Repost",
+    "like": "Like",
+    "comment": "Comment",
+    "search": "Search",
+    "follow": "Follow",
+    "upvote": "Upvote",
+    "downvote": "Downvote"
   }
 }

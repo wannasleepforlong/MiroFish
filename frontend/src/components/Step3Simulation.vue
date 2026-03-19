@@ -105,6 +105,13 @@
 
     <!-- Main Content: Dual Timeline -->
     <div class="main-content-area" ref="scrollContainer">
+      <!-- Trends Heatmap -->
+      <TrendsHeatmap 
+        v-if="allActions.length > 0"
+        :actions="allActions"
+        :rounds="runStatus.total_rounds || maxRounds"
+        :loading="isStarting"
+      />
       <!-- Timeline Header -->
       <div class="timeline-header" v-if="allActions.length > 0">
         <div class="timeline-stats">
@@ -289,6 +296,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
+import TrendsHeatmap from './TrendsHeatmap.vue'
 import { 
   startSimulation, 
   stopSimulation,

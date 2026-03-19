@@ -145,6 +145,7 @@
     "missingInfo": "缺少项目或图谱信息"
   },
   "step2": {
+    "viewInit": "交互视图初始化完成",
     "simInit": "模拟实例初始化",
     "initStatus": "初始化",
     "simInitDesc": "新建simulation实例，拉取模拟世界参数模版",
@@ -435,5 +436,23 @@
     "graphDataLoaded": "图谱数据加载成功",
     "graphLoadFailed": "图谱加载失败: {error}",
     "viewInit": "InteractionView 初始化"
+  },
+  "trends": {
+    "title": "趋势分析",
+    "actions": "动作类型",
+    "agents": "活跃个体",
+    "intensity": "活跃热度",
+    "noData": "暂无可视化数据",
+    "acts": "次动作",
+    "round_label": "轮次",
+    "post": "发布",
+    "quote": "引用",
+    "repost": "转发",
+    "like": "点赞",
+    "comment": "评论",
+    "search": "搜索",
+    "follow": "关注",
+    "upvote": "顶",
+    "downvote": "踩"
   }
 }
