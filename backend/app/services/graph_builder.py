@@ -621,19 +621,3 @@ Example format: ["EU AI Act compliance", "generative AI regulation Europe", "AI 
             logger = logging.getLogger('mirofish.graph_builder')
             logger.error(f"Error fetching/adding live news: {str(e)}")
             return None
-     uuids = self.client.graph.add(
-                graph_id=graph_id,
-                type="text",
-                data=report_text
-            )
-            print(f"DEBUG: fetch_and_add_news - Zep response uuids: {uuids}")
-            
-            if isinstance(uuids, list) and len(uuids) > 0:
-                return uuids[0]
-            return uuids
-        except Exception as e:
-            import logging
-            logger = logging.getLogger('mirofish.graph_builder')
-            logger.error(f"Error fetching/adding live news: {str(e)}")
-            return None
-
