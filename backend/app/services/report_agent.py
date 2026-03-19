@@ -1215,7 +1215,7 @@ class ReportAgent:
                 )
             
             # Add delay to avoid hitting LLM API rate limits (too many requests)
-            time.sleep(2)
+            time.sleep(8)
 
             # Call LLM
             response = self.llm.chat(
@@ -1554,7 +1554,7 @@ class ReportAgent:
             for i, section in enumerate(outline.sections):
                 # Add delay between sections to avoid hitting LLM rate limits
                 if i > 0:
-                    time.sleep(3)
+                    time.sleep(8)
                     
                 section_num = i + 1
                 base_progress = 20 + int((i / total_sections) * 70)
