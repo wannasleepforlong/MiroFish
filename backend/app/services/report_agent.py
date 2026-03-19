@@ -1214,6 +1214,9 @@ class ReportAgent:
                     f"Deep retrieval and writing in progress ({tool_calls_count}/{self.MAX_TOOL_CALLS_PER_SECTION})"
                 )
             
+            # Add delay to avoid hitting LLM API rate limits (too many requests)
+            time.sleep(2)
+
             # Call LLM
             response = self.llm.chat(
                 messages=messages,
@@ -1549,6 +1552,10 @@ class ReportAgent:
             generated_sections = []  # Save content for context
             
             for i, section in enumerate(outline.sections):
+                # Add delay between sections to avoid hitting LLM rate limits
+                if i > 0:
+                    time.sleep(3)
+                    
                 section_num = i + 1
                 base_progress = 20 + int((i / total_sections) * 70)
                 
