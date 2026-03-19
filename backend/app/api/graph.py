@@ -156,7 +156,7 @@ def generate_ontology():
         project_name = request.form.get('project_name', 'Unnamed Project')
         additional_context = request.form.get('additional_context', '')
         language = request.form.get('language', Config.LANGUAGE)
-        enable_news = request.form.get('enable_news', 'false').lower() == 'true'
+        enable_news = request.form.get('enable_news', 'true').lower() == 'true'
 
         logger.debug(f"Project name: {project_name}")
         logger.debug(f"Simulation requirement: {simulation_requirement[:100]}...")
