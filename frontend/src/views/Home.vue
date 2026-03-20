@@ -240,7 +240,7 @@ const toggleLang = () => {
 // Form data
 const formData = ref({
   simulationRequirement: '',
-  enableNews: true
+  enableNews: false
 })
 
 // File list

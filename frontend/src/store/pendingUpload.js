@@ -7,7 +7,7 @@ import { reactive } from 'vue'
 const state = reactive({
   files: [],
   simulationRequirement: '',
-  enableNews: true,
+  enableNews: false,
   isPending: false
 })
 

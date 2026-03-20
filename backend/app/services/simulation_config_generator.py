@@ -84,7 +84,7 @@ class AgentActivityConfig:
 class TimeSimulationConfig:
     """Time simulation configuration (based on Chinese daily habits)"""
     # Total simulation duration (simulated hours)
-    total_simulation_hours: int = 72  # Default 72 hours (3 days)
+    total_simulation_hours: int = 10  # Default 10 hours (10 rounds) for faster testing
     
     # Time represented per round (simulated minutes) - default 60 minutes (1 hour), speeds up time flow
     minutes_per_round: int = 60
@@ -554,7 +554,7 @@ Generate time configuration JSON.
 
 Example:
 {{
-    "total_simulation_hours": 72,
+    "total_simulation_hours": 10,
     "minutes_per_round": 60,
     "agents_per_hour_min": 5,
     "agents_per_hour_max": 50,
@@ -566,7 +566,7 @@ Example:
 }}
 
 Field descriptions:
-- total_simulation_hours (int): Total simulation duration, 24-168 hours
+- total_simulation_hours (int): Total simulation duration, 10-168 hours (10 hours = 10 rounds)
 - minutes_per_round (int): Duration per round, 30-120 minutes, recommended 60
 - agents_per_hour_min (int): Min agents activated per hour (range: 1-{max_agents_allowed})
 - agents_per_hour_max (int): Max agents activated per hour (range: 1-{max_agents_allowed})
@@ -601,7 +601,7 @@ Generate time configuration JSON.
 
 Example:
 {{
-    "total_simulation_hours": 72,
+    "total_simulation_hours": 10,
     "minutes_per_round": 60,
     "agents_per_hour_min": 5,
     "agents_per_hour_max": 50,
@@ -613,7 +613,7 @@ Example:
 }}
 
 Field descriptions:
-- total_simulation_hours (int): Total simulation duration, 24-168 hours, short for breaking events, long for ongoing topics
+- total_simulation_hours (int): Total simulation duration, 10-168 hours (10 hours = 10 rounds), short for breaking events
 - minutes_per_round (int): Duration per round, 30-120 minutes, recommended 60
 - agents_per_hour_min (int): Min agents activated per hour (range: 1-{max_agents_allowed})
 - agents_per_hour_max (int): Max agents activated per hour (range: 1-{max_agents_allowed})
@@ -633,8 +633,9 @@ Field descriptions:
     
     def _get_default_time_config(self, num_entities: int) -> Dict[str, Any]:
         """Get default time configuration (Chinese daily habits)"""
+        # Default reduced to 10 rounds (10 hours total) for faster testing
         return {
-            "total_simulation_hours": 72,
+            "total_simulation_hours": 10,  # Reduced from 72 to 10 for faster testing
             "minutes_per_round": 60,  # 1 hour per round, speeds up time flow
             "agents_per_hour_min": max(1, num_entities // 15),
             "agents_per_hour_max": max(5, num_entities // 5),
@@ -642,7 +643,7 @@ Field descriptions:
             "off_peak_hours": [0, 1, 2, 3, 4, 5],
             "morning_hours": [6, 7, 8],
             "work_hours": [9, 10, 11, 12, 13, 14, 15, 16, 17, 18],
-            "reasoning": "Using default Chinese daily habits configuration (1 hour per round)"
+            "reasoning": "Using default configuration (10 hours = 10 rounds for faster testing)"
         }
     
     def _parse_time_config(self, result: Dict[str, Any], num_entities: int) -> TimeSimulationConfig:
@@ -666,7 +667,7 @@ Field descriptions:
             logger.warning(f"agents_per_hour_min >= max, corrected to {agents_per_hour_min}")
         
         return TimeSimulationConfig(
-            total_simulation_hours=result.get("total_simulation_hours", 72),
+            total_simulation_hours=result.get("total_simulation_hours", 10),  # Default 10 hours = 10 rounds
             minutes_per_round=result.get("minutes_per_round", 60),  # Default 1 hour per round
             agents_per_hour_min=agents_per_hour_min,
             agents_per_hour_max=agents_per_hour_max,

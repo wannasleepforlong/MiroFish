@@ -543,7 +543,59 @@ Example format: ["EU AI Act compliance", "generative AI regulation Europe", "AI 
             print(f"DEBUG: _generate_smart_news_queries - error: {e}")
             return [query]
 
-    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 3, context_text: Optional[str] = None) -> Optional[str]:
+    def _filter_relevant_articles(self, articles: List[Dict], query: str, limit: int = 5) -> List[Dict]:
+        """
+        Use LLM to score and filter articles by relevance to the simulation requirement.
+        Returns the top N most relevant articles.
+        """
+        if not articles:
+            return []
+            
+        try:
+            llm = LLMClient()
+            
+            # Prepare article summaries for the LLM
+            article_summaries = []
+            for i, art in enumerate(articles, 1):
+                title = art.get('title', 'N/A')
+                desc = art.get('description', 'N/A')
+                source = art.get('source', {}).get('name', 'N/A')
+                article_summaries.append(f"{i}. Title: {title}\n   Source: {source}\n   Summary: {desc[:200]}")
+            
+            articles_text = "\n\n".join(article_summaries[:6])  # Limit to 6 articles for prompt length
+            
+            system_prompt = "You are an expert at evaluating news article relevance. Return ONLY a JSON array of indices (starting from 1) of the most relevant articles. Do not include any other text."
+            user_prompt = f"""Given the simulation requirement: "{query}"
+
+Evaluate the following news articles and select the top {limit} most relevant ones. Relevance means articles that would significantly impact or contextualize a simulation about this topic.
+
+Articles:
+{articles_text}
+
+Return a JSON array of indices (e.g., [1, 3, 5]) of the most relevant articles. If no articles are relevant, return an empty array []."""
+            
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            
+            selected_indices = llm.chat_json(messages, temperature=0.1)
+            
+            if isinstance(selected_indices, list) and selected_indices:
+                # Convert 1-based indices to 0-based
+                filtered = []
+                for idx in selected_indices:
+                    if isinstance(idx, int) and 1 <= idx <= len(articles):
+                        filtered.append(articles[idx - 1])
+                return filtered[:limit]
+            
+            return []
+            
+        except Exception as e:
+            print(f"DEBUG: _filter_relevant_articles - error: {e}")
+            return []
+
+    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 5, context_text: Optional[str] = None) -> Optional[str]:
         """
         获取实时新闻并添加到图谱作为初始种子
         """
@@ -581,31 +633,44 @@ Example format: ["EU AI Act compliance", "generative AI regulation Europe", "AI 
             print(f"DEBUG: fetch_and_add_news - total unique articles found: {len(all_articles)}")
             if not all_articles:
                 return None
-                
-            # Keep only up to the requested limit
-            news_items = all_articles[:limit]
             
-            # 格式化新闻文本
+            # Use LLM to filter for most relevant articles
+            print(f"DEBUG: fetch_and_add_news - filtering for relevance...")
+            news_items = self._filter_relevant_articles(all_articles, query, limit)
+            if not news_items:
+                # Fallback to original behavior if LLM filtering fails
+                print(f"DEBUG: fetch_and_add_news - LLM filtering failed, using default selection")
+                news_items = all_articles[:limit]
+            else:
+                print(f"DEBUG: fetch_and_add_news - LLM filtered to {len(news_items)} relevant articles")
+            
+            # 格式化新闻文本 - Mark as BACKGROUND ONLY
             report_lines = [
-                f"### LIVE NEWS REPORT: {time.strftime('%Y-%m-%d')} ###",
+                f"### BACKGROUND CONTEXT - EXTERNAL NEWS (Do not use as primary source) ###",
+                f"Date: {time.strftime('%Y-%m-%d')}",
                 f"Original Requirement: {query}",
+                f"Note: This news is provided as supplementary background context only. ",
+                f"The PRIMARY source for report generation should be the uploaded document. ",
+                f"Use these news items only to validate or supplement document findings.",
                 f"System Queries: {', '.join(search_queries)}",
+                "",
+                "--- BACKGROUND NEWS ARTICLES ---",
                 ""
             ]
             
             for i, item in enumerate(news_items, 1):
-                report_lines.append(f"ARTICLE {i}:")
+                report_lines.append(f"[Background {i}]:")
                 report_lines.append(f"Title: {item.get('title', 'N/A')}")
                 report_lines.append(f"Source: {item.get('source', {}).get('name', 'N/A')}")
                 report_lines.append(f"Date: {item.get('publishedAt', 'N/A')}")
                 report_lines.append(f"Summary: {item.get('description', 'N/A')}")
                 report_lines.append("")
                 
-            report_lines.append("### END OF NEWS REPORT ###")
+            report_lines.append("--- END OF BACKGROUND CONTEXT ---")
             report_text = "\n".join(report_lines)
             print(f"DEBUG: fetch_and_add_news - report_text length: {len(report_text)}")
             
-            # 添加到图谱
+            # 添加到图谱 - 作为文本episode用于RAG搜索
             uuids = self.client.graph.add(
                 graph_id=graph_id,
                 type="text",

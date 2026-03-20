@@ -50,7 +50,7 @@ class Project:
     simulation_requirement: Optional[str] = None
     chunk_size: int = 500
     chunk_overlap: int = 50
-    enable_news: bool = True
+    enable_news: bool = False
     
     # Error details.
     error: Optional[str] = None
