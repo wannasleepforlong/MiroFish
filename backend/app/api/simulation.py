@@ -179,7 +179,8 @@ def create_simulation():
             "project_id": "proj_xxxx",      // required
             "graph_id": "mirofish_xxxx",    // optional, falls back to project.graph_id
             "enable_twitter": true,          // optional, default true
-            "enable_reddit": true            // optional, default true
+            "enable_reddit": true,           // optional, default true
+            "enable_linkedin": true          // optional, default true
         }
 
     Returns:
@@ -192,6 +193,7 @@ def create_simulation():
                 "status": "created",
                 "enable_twitter": true,
                 "enable_reddit": true,
+                "enable_linkedin": true,
                 "created_at": "2025-12-01T10:00:00"
             }
         }
@@ -226,6 +228,7 @@ def create_simulation():
             graph_id=graph_id,
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
+            enable_linkedin=data.get('enable_linkedin', True),
         )
 
         return jsonify({
@@ -269,13 +272,26 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
     if not os.path.exists(simulation_dir):
         return False, {"reason": "Simulation directory does not exist"}
 
+    state_file = os.path.join(simulation_dir, "state.json")
+
+    # Load state early so required files can reflect enabled platforms.
+    state_data = {}
+    if os.path.exists(state_file):
+        try:
+            import json
+            with open(state_file, 'r', encoding='utf-8') as f:
+                state_data = json.load(f)
+        except Exception:
+            state_data = {}
+
     # Required files (excluding scripts, which live in backend/scripts/).
-    required_files = [
-        "state.json",
-        "simulation_config.json",
-        "reddit_profiles.json",
-        "twitter_profiles.csv"
-    ]
+    required_files = ["state.json", "simulation_config.json"]
+    if state_data.get("enable_reddit", True):
+        required_files.append("reddit_profiles.json")
+    if state_data.get("enable_twitter", True):
+        required_files.append("twitter_profiles.csv")
+    if state_data.get("enable_linkedin", False):
+        required_files.append("linkedin_profiles.csv")
 
     # Check file presence.
     existing_files = []
@@ -295,11 +311,11 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
         }
 
     # Inspect the state in state.json.
-    state_file = os.path.join(simulation_dir, "state.json")
     try:
         import json
-        with open(state_file, 'r', encoding='utf-8') as f:
-            state_data = json.load(f)
+        if not state_data:
+            with open(state_file, 'r', encoding='utf-8') as f:
+                state_data = json.load(f)
 
         status = state_data.get("status", "")
         config_generated = state_data.get("config_generated", False)
@@ -1459,7 +1475,7 @@ def start_simulation():
     Request (JSON):
         {
             "simulation_id": "sim_xxxx",          // required
-            "platform": "parallel",                // optional: twitter / reddit / parallel (default)
+            "platform": "parallel",                // optional: twitter / reddit / linkedin / parallel (default)
             "max_rounds": 100,                     // optional: cap the number of rounds
             "enable_graph_memory_update": false,   // optional: write agent activity back into Zep graph memory
             "force": false                         // optional: force restart after stopping the current run and cleaning logs
@@ -1525,10 +1541,10 @@ def start_simulation():
                     "error": "max_rounds must be a valid integer"
                 }), 400
 
-        if platform not in ['twitter', 'reddit', 'parallel']:
+        if platform not in ['twitter', 'reddit', 'linkedin', 'parallel']:
             return jsonify({
                 "success": False,
-                "error": f"Invalid platform: {platform}. Allowed values: twitter/reddit/parallel"
+                "error": f"Invalid platform: {platform}. Allowed values: twitter/reddit/linkedin/parallel"
             }), 400
 
         # Check whether the simulation is ready.
@@ -1773,7 +1789,7 @@ def get_run_status_detail(simulation_id: str):
     Used by the frontend for real-time activity views.
 
     Query parameters:
-        platform: optional platform filter (twitter/reddit)
+        platform: optional platform filter (twitter/reddit/linkedin)
 
     Returns:
         {
@@ -1798,7 +1814,8 @@ def get_run_status_detail(simulation_id: str):
                     ...
                 ],
                 "twitter_actions": [...],  # all Twitter actions
-                "reddit_actions": [...]    # all Reddit actions
+                "reddit_actions": [...],   # all Reddit actions
+                "linkedin_actions": [...]  # all LinkedIn actions
             }
         }
     """
@@ -1814,7 +1831,8 @@ def get_run_status_detail(simulation_id: str):
                     "runner_status": "idle",
                     "all_actions": [],
                     "twitter_actions": [],
-                    "reddit_actions": []
+                    "reddit_actions": [],
+                    "linkedin_actions": []
                 }
             })
 
@@ -1835,6 +1853,11 @@ def get_run_status_detail(simulation_id: str):
             platform="reddit"
         ) if not platform_filter or platform_filter == "reddit" else []
 
+        linkedin_actions = SimulationRunner.get_all_actions(
+            simulation_id=simulation_id,
+            platform="linkedin"
+        ) if not platform_filter or platform_filter == "linkedin" else []
+
         # Get current-round actions. `recent_actions` only shows the latest round.
         current_round = run_state.current_round
         recent_actions = SimulationRunner.get_all_actions(
@@ -1848,6 +1871,7 @@ def get_run_status_detail(simulation_id: str):
         result["all_actions"] = [a.to_dict() for a in all_actions]
         result["twitter_actions"] = [a.to_dict() for a in twitter_actions]
         result["reddit_actions"] = [a.to_dict() for a in reddit_actions]
+        result["linkedin_actions"] = [a.to_dict() for a in linkedin_actions]
         result["rounds_count"] = len(run_state.rounds)
         # `recent_actions` only includes the latest round across both platforms.
         result["recent_actions"] = [a.to_dict() for a in recent_actions]

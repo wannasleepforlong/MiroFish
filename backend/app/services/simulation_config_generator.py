@@ -164,6 +164,7 @@ class SimulationParameters:
     # Platform configuration
     twitter_config: Optional[PlatformConfig] = None
     reddit_config: Optional[PlatformConfig] = None
+    enable_linkedin_connections: bool = True
     
     # LLM configuration
     llm_model: str = ""
@@ -186,6 +187,7 @@ class SimulationParameters:
             "event_config": asdict(self.event_config),
             "twitter_config": asdict(self.twitter_config) if self.twitter_config else None,
             "reddit_config": asdict(self.reddit_config) if self.reddit_config else None,
+            "enable_linkedin_connections": self.enable_linkedin_connections,
             "llm_model": self.llm_model,
             "llm_base_url": self.llm_base_url,
             "generated_at": self.generated_at,
@@ -251,6 +253,7 @@ class SimulationConfigGenerator:
         entities: List[EntityNode],
         enable_twitter: bool = True,
         enable_reddit: bool = True,
+        enable_linkedin: bool = True,
         progress_callback: Optional[Callable[[int, int, str], None]] = None,
     ) -> SimulationParameters:
         """
@@ -265,6 +268,7 @@ class SimulationConfigGenerator:
             entities: Filtered entity list
             enable_twitter: Whether to enable Twitter
             enable_reddit: Whether to enable Reddit
+            enable_linkedin: Whether to enable LinkedIn
             progress_callback: Progress callback function (current_step, total_steps, message)
             
         Returns:
@@ -370,6 +374,7 @@ class SimulationConfigGenerator:
             event_config=event_config,
             twitter_config=twitter_config,
             reddit_config=reddit_config,
+            enable_linkedin_connections=enable_linkedin,
             llm_model=self.model_name,
             llm_base_url=self.base_url,
             generation_reasoning=" | ".join(reasoning_parts)

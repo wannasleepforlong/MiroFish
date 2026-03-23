@@ -158,6 +158,17 @@
         <div class="card-content">
           <p class="api-note">POST /api/simulation/create</p>
           <p class="description">{{ $t('step1.buildCompleteDesc') }}</p>
+          <div class="platform-toggle-row">
+            <div class="toggle-copy">
+              <span class="toggle-title">LinkedIn</span>
+              <span class="toggle-desc">Include LinkedIn alongside Reddit and Twitter when the simulation runs.</span>
+            </div>
+            <label class="switch-control">
+              <input v-model="enableLinkedIn" type="checkbox">
+              <span class="switch-track"></span>
+              <span class="switch-label">{{ enableLinkedIn ? 'On' : 'Off' }}</span>
+            </label>
+          </div>
           <button 
             class="action-btn" 
             :disabled="currentPhase < 2 || creatingSimulation"
@@ -209,6 +220,7 @@ defineEmits(['next-step'])
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
+const enableLinkedIn = ref(true)
 
 // Enter environment setup - create simulation and navigate
 const handleEnterEnvSetup = async () => {
@@ -224,7 +236,8 @@ const handleEnterEnvSetup = async () => {
       project_id: props.projectData.project_id,
       graph_id: props.projectData.graph_id,
       enable_twitter: true,
-      enable_reddit: true
+      enable_reddit: true,
+      enable_linkedin: enableLinkedIn.value
     })
     
     if (res.success && res.data?.simulation_id) {
@@ -621,6 +634,87 @@ watch(() => props.systemLogs.length, () => {
 .action-btn:disabled {
   background: #CCC;
   cursor: not-allowed;
+}
+
+.platform-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid #EAEAEA;
+  border-radius: 6px;
+  background: #FAFAFA;
+}
+
+.toggle-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.toggle-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.toggle-desc {
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+  max-width: 320px;
+}
+
+.switch-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.switch-control input {
+  display: none;
+}
+
+.switch-track {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: #D7DCE2;
+  position: relative;
+  transition: background 0.2s ease;
+}
+
+.switch-track::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #FFF;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.16);
+}
+
+.switch-control input:checked + .switch-track {
+  background: #111;
+}
+
+.switch-control input:checked + .switch-track::after {
+  transform: translateX(16px);
+}
+
+.switch-label {
+  min-width: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #555;
 }
 
 .progress-section {

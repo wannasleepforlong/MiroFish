@@ -88,6 +88,53 @@
             </div>
           </div>
         </div>
+
+        <div
+          v-if="linkedinEnabled"
+          class="platform-status linkedin"
+          :class="{ active: runStatus.linkedin_running, completed: runStatus.linkedin_completed }"
+        >
+          <div class="platform-header">
+            <svg class="platform-icon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <line x1="8" y1="10" x2="8" y2="16"></line>
+              <line x1="12" y1="10" x2="12" y2="16"></line>
+              <path d="M16 16v-3.5a2 2 0 0 0-4 0V16"></path>
+              <circle cx="8" cy="7.5" r="0.8" fill="currentColor" stroke="none"></circle>
+            </svg>
+            <span class="platform-name">Professional Network</span>
+            <span v-if="runStatus.linkedin_completed" class="status-badge">
+              <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </span>
+          </div>
+          <div class="platform-stats">
+            <span class="stat">
+              <span class="stat-label">ROUND</span>
+              <span class="stat-value mono">{{ runStatus.linkedin_current_round || 0 }}<span class="stat-total">/{{ runStatus.total_rounds || maxRounds || '-' }}</span></span>
+            </span>
+            <span class="stat">
+              <span class="stat-label">Elapsed Time</span>
+              <span class="stat-value mono">{{ linkedinElapsedTime }}</span>
+            </span>
+            <span class="stat">
+              <span class="stat-label">ACTS</span>
+              <span class="stat-value mono">{{ runStatus.linkedin_actions_count || 0 }}</span>
+            </span>
+          </div>
+          <div class="actions-tooltip">
+            <div class="tooltip-title">Available Actions</div>
+            <div class="tooltip-actions">
+              <span class="tooltip-action">POST</span>
+              <span class="tooltip-action">COMMENT</span>
+              <span class="tooltip-action">LIKE</span>
+              <span class="tooltip-action">REPOST</span>
+              <span class="tooltip-action">FOLLOW</span>
+              <span class="tooltip-action">IDLE</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       <div class="action-controls">
@@ -126,6 +173,13 @@
               <svg class="mini-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
               <span class="mono">{{ redditActionsCount }}</span>
             </span>
+            <template v-if="linkedinEnabled">
+              <span class="breakdown-divider">/</span>
+              <span class="breakdown-item linkedin">
+                <svg class="mini-icon" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="8" y1="10" x2="8" y2="16"></line><line x1="12" y1="10" x2="12" y2="16"></line><path d="M16 16v-3.5a2 2 0 0 0-4 0V16"></path><circle cx="8" cy="7.5" r="0.8" fill="currentColor" stroke="none"></circle></svg>
+                <span class="mono">{{ linkedinActionsCount }}</span>
+              </span>
+            </template>
           </span>
         </div>
       </div>
@@ -155,7 +209,8 @@
                 <div class="header-meta">
                   <div class="platform-indicator">
                     <svg v-if="action.platform === 'twitter'" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-                    <svg v-else viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                    <svg v-else-if="action.platform === 'reddit'" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                    <svg v-else viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"></rect><line x1="8" y1="10" x2="8" y2="16"></line><line x1="12" y1="10" x2="12" y2="16"></line><path d="M16 16v-3.5a2 2 0 0 0-4 0V16"></path><circle cx="8" cy="7.5" r="0.8" fill="currentColor" stroke="none"></circle></svg>
                   </div>
                   <div class="action-badge" :class="getActionTypeClass(action.action_type)">
                     {{ getActionTypeLabel(action.action_type) }}
@@ -263,7 +318,7 @@
 
               <div class="card-footer">
                 <span class="time-tag">R{{ action.round_num }} • {{ formatActionTime(action.timestamp) }}</span>
-                <!-- Platform tag removed as it is in header now -->
+                <span class="footer-source">{{ getPlatformDisplayName(action.platform) }} • {{ action.agent_name || 'Agent' }}</span>
               </div>
             </div>
           </div>
@@ -307,6 +362,7 @@ import { generateReport } from '../api/report'
 
 const props = defineProps({
   simulationId: String,
+  simulationData: Object,
   maxRounds: Number, // Max rounds passed from Step2
   minutesPerRound: {
     type: Number,
@@ -348,6 +404,20 @@ const redditActionsCount = computed(() => {
   return allActions.value.filter(a => a.platform === 'reddit').length
 })
 
+const linkedinActionsCount = computed(() => {
+  return allActions.value.filter(a => a.platform === 'linkedin').length
+})
+
+const linkedinEnabled = computed(() => {
+  return Boolean(
+    props.simulationData?.enable_linkedin ||
+    runStatus.value.linkedin_running ||
+    runStatus.value.linkedin_completed ||
+    (runStatus.value.linkedin_actions_count || 0) > 0 ||
+    linkedinActionsCount.value > 0
+  )
+})
+
 // Format simulated elapsed time (calculated from rounds and minutes per round)
 const formatElapsedTime = (currentRound) => {
   if (!currentRound || currentRound <= 0) return '0h 0m'
@@ -367,6 +437,10 @@ const redditElapsedTime = computed(() => {
   return formatElapsedTime(runStatus.value.reddit_current_round || 0)
 })
 
+const linkedinElapsedTime = computed(() => {
+  return formatElapsedTime(runStatus.value.linkedin_current_round || 0)
+})
+
 // Methods
 const addLog = (msg) => {
   emit('add-log', msg)
@@ -380,6 +454,7 @@ const resetAllState = () => {
   actionIds.value = new Set()
   prevTwitterRound.value = 0
   prevRedditRound.value = 0
+  prevLinkedinRound.value = 0
   startError.value = null
   isStarting.value = false
   isStopping.value = false
@@ -495,6 +570,7 @@ const stopPolling = () => {
 // Track previous round per platform for detecting changes and logging
 const prevTwitterRound = ref(0)
 const prevRedditRound = ref(0)
+const prevLinkedinRound = ref(0)
 
 const fetchRunStatus = async () => {
   if (!props.simulationId) return
@@ -516,6 +592,11 @@ const fetchRunStatus = async () => {
       if (data.reddit_current_round > prevRedditRound.value) {
         addLog(`[Community] R${data.reddit_current_round}/${data.total_rounds} | T:${data.reddit_simulated_hours || 0}h | A:${data.reddit_actions_count}`)
         prevRedditRound.value = data.reddit_current_round
+      }
+
+      if (data.linkedin_current_round > prevLinkedinRound.value) {
+        addLog(`[LinkedIn] R${data.linkedin_current_round}/${data.total_rounds} | T:${data.linkedin_simulated_hours || 0}h | A:${data.linkedin_actions_count || 0}`)
+        prevLinkedinRound.value = data.linkedin_current_round
       }
       
       // Detect if simulation completed (via runner_status or platform completion status)
@@ -548,18 +629,21 @@ const checkPlatformsCompleted = (data) => {
   // Check each platform's completion status
   const twitterCompleted = data.twitter_completed === true
   const redditCompleted = data.reddit_completed === true
+  const linkedinCompleted = data.linkedin_completed === true
   
   // If at least one platform completed, check if all enabled platforms completed
   // Determine if platform is enabled by actions_count (count > 0 or was running)
   const twitterEnabled = (data.twitter_actions_count > 0) || data.twitter_running || twitterCompleted
   const redditEnabled = (data.reddit_actions_count > 0) || data.reddit_running || redditCompleted
+  const linkedinEnabled = (data.linkedin_actions_count > 0) || data.linkedin_running || linkedinCompleted || props.simulationData?.enable_linkedin
   
   // If no platform is enabled, return false
-  if (!twitterEnabled && !redditEnabled) return false
+  if (!twitterEnabled && !redditEnabled && !linkedinEnabled) return false
   
   // Check if all enabled platforms have completed
   if (twitterEnabled && !twitterCompleted) return false
   if (redditEnabled && !redditCompleted) return false
+  if (linkedinEnabled && !linkedinCompleted) return false
   
   return true
 }
@@ -637,6 +721,13 @@ const truncateContent = (content, maxLength = 100) => {
   if (!content) return ''
   if (content.length > maxLength) return content.substring(0, maxLength) + '...'
   return content
+}
+
+const getPlatformDisplayName = (platform) => {
+  if (platform === 'twitter') return 'Info Plaza'
+  if (platform === 'reddit') return 'Topic Community'
+  if (platform === 'linkedin') return 'Professional Network'
+  return platform || 'Unknown'
 }
 
 const formatActionTime = (timestamp) => {
@@ -839,6 +930,7 @@ onUnmounted(() => {
 
 .platform-status.twitter .platform-icon { color: #000; }
 .platform-status.reddit .platform-icon { color: #000; }
+.platform-status.linkedin .platform-icon { color: #000; }
 
 .platform-stats {
   display: flex;
@@ -960,6 +1052,7 @@ onUnmounted(() => {
 .breakdown-divider { color: #DDD; }
 .breakdown-item.twitter { color: #000; }
 .breakdown-item.reddit { color: #000; }
+.breakdown-item.linkedin { color: #000; }
 
 /* --- Timeline Feed --- */
 .timeline-feed {
@@ -1013,8 +1106,10 @@ onUnmounted(() => {
 
 .timeline-item.twitter .marker-dot { background: #000; }
 .timeline-item.reddit .marker-dot { background: #000; }
+.timeline-item.linkedin .marker-dot { background: #000; }
 .timeline-item.twitter .timeline-marker { border-color: #000; }
 .timeline-item.reddit .timeline-marker { border-color: #000; }
+.timeline-item.linkedin .timeline-marker { border-color: #000; }
 
 /* Card Layout */
 .timeline-card {
@@ -1051,6 +1146,15 @@ onUnmounted(() => {
 .timeline-item.reddit .timeline-card {
   margin-right: auto;
   margin-left: 32px; /* Gap from axis */
+}
+
+.timeline-item.linkedin {
+  justify-content: center;
+}
+
+.timeline-item.linkedin .timeline-card {
+  width: min(640px, calc(100% - 96px));
+  margin: 0 auto;
 }
 
 /* Card Content Styles */
@@ -1167,10 +1271,18 @@ onUnmounted(() => {
 .card-footer {
   margin-top: 12px;
   display: flex;
-  justify-content: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
   font-size: 10px;
   color: #BBB;
   font-family: 'JetBrains Mono', monospace;
+}
+
+.footer-source {
+  font-size: 10px;
+  color: #8A8A8A;
+  text-align: right;
 }
 
 /* Waiting State */

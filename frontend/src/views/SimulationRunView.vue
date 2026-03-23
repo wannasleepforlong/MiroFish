@@ -51,6 +51,7 @@
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <Step3Simulation
           :simulationId="currentSimulationId"
+          :simulationData="simulationData"
           :maxRounds="maxRounds"
           :minutesPerRound="minutesPerRound"
           :projectData="projectData"
@@ -89,6 +90,7 @@ const viewMode = ref('split')
 
 // Data State
 const currentSimulationId = ref(route.params.simulationId)
+const simulationData = ref(null)
 // Get maxRounds from query params at init time to ensure child components receive the value immediately
 const maxRounds = ref(route.query.maxRounds ? parseInt(route.query.maxRounds) : null)
 const minutesPerRound = ref(30) // Default 30 minutes per round
@@ -209,6 +211,7 @@ const loadSimulationData = async () => {
     const simRes = await getSimulation(currentSimulationId.value)
     if (simRes.success && simRes.data) {
       const simData = simRes.data
+      simulationData.value = simData
       
       // Get simulation config to obtain minutes_per_round
       try {

@@ -80,6 +80,7 @@ class RoundSummary:
     simulated_hour: int = 0
     twitter_actions: int = 0
     reddit_actions: int = 0
+    linkedin_actions: int = 0
     active_agents: List[int] = field(default_factory=list)
     actions: List[AgentAction] = field(default_factory=list)
     
@@ -91,6 +92,7 @@ class RoundSummary:
             "simulated_hour": self.simulated_hour,
             "twitter_actions": self.twitter_actions,
             "reddit_actions": self.reddit_actions,
+            "linkedin_actions": self.linkedin_actions,
             "active_agents": self.active_agents,
             "actions_count": len(self.actions),
             "actions": [a.to_dict() for a in self.actions],
@@ -112,18 +114,23 @@ class SimulationRunState:
     # Per-platform independent rounds and simulated time (for dual-platform parallel display)
     twitter_current_round: int = 0
     reddit_current_round: int = 0
+    linkedin_current_round: int = 0
     twitter_simulated_hours: int = 0
     reddit_simulated_hours: int = 0
+    linkedin_simulated_hours: int = 0
     
     # Platform status
     twitter_running: bool = False
     reddit_running: bool = False
+    linkedin_running: bool = False
     twitter_actions_count: int = 0
     reddit_actions_count: int = 0
+    linkedin_actions_count: int = 0
     
     # Platform completion status (detected via simulation_end event in actions.jsonl)
     twitter_completed: bool = False
     reddit_completed: bool = False
+    linkedin_completed: bool = False
     
     # Per-round summaries
     rounds: List[RoundSummary] = field(default_factory=list)
@@ -151,6 +158,8 @@ class SimulationRunState:
         
         if action.platform == "twitter":
             self.twitter_actions_count += 1
+        elif action.platform == "linkedin":
+            self.linkedin_actions_count += 1
         else:
             self.reddit_actions_count += 1
         
@@ -168,15 +177,20 @@ class SimulationRunState:
             # Per-platform independent rounds and time
             "twitter_current_round": self.twitter_current_round,
             "reddit_current_round": self.reddit_current_round,
+            "linkedin_current_round": self.linkedin_current_round,
             "twitter_simulated_hours": self.twitter_simulated_hours,
             "reddit_simulated_hours": self.reddit_simulated_hours,
+            "linkedin_simulated_hours": self.linkedin_simulated_hours,
             "twitter_running": self.twitter_running,
             "reddit_running": self.reddit_running,
+            "linkedin_running": self.linkedin_running,
             "twitter_completed": self.twitter_completed,
             "reddit_completed": self.reddit_completed,
+            "linkedin_completed": self.linkedin_completed,
             "twitter_actions_count": self.twitter_actions_count,
             "reddit_actions_count": self.reddit_actions_count,
-            "total_actions_count": self.twitter_actions_count + self.reddit_actions_count,
+            "linkedin_actions_count": self.linkedin_actions_count,
+            "total_actions_count": self.twitter_actions_count + self.reddit_actions_count + self.linkedin_actions_count,
             "started_at": self.started_at,
             "updated_at": self.updated_at,
             "completed_at": self.completed_at,
@@ -259,14 +273,19 @@ class SimulationRunner:
                 # Per-platform independent rounds and time
                 twitter_current_round=data.get("twitter_current_round", 0),
                 reddit_current_round=data.get("reddit_current_round", 0),
+                linkedin_current_round=data.get("linkedin_current_round", 0),
                 twitter_simulated_hours=data.get("twitter_simulated_hours", 0),
                 reddit_simulated_hours=data.get("reddit_simulated_hours", 0),
+                linkedin_simulated_hours=data.get("linkedin_simulated_hours", 0),
                 twitter_running=data.get("twitter_running", False),
                 reddit_running=data.get("reddit_running", False),
+                linkedin_running=data.get("linkedin_running", False),
                 twitter_completed=data.get("twitter_completed", False),
                 reddit_completed=data.get("reddit_completed", False),
+                linkedin_completed=data.get("linkedin_completed", False),
                 twitter_actions_count=data.get("twitter_actions_count", 0),
                 reddit_actions_count=data.get("reddit_actions_count", 0),
+                linkedin_actions_count=data.get("linkedin_actions_count", 0),
                 started_at=data.get("started_at"),
                 updated_at=data.get("updated_at", datetime.now().isoformat()),
                 completed_at=data.get("completed_at"),
@@ -384,16 +403,22 @@ class SimulationRunner:
             cls._graph_memory_enabled[simulation_id] = False
         
         # Determine which script to run (scripts are in backend/scripts/ directory)
+        enable_linkedin = bool(config.get("enable_linkedin_connections", False))
+
         if platform == "twitter":
             script_name = "run_twitter_simulation.py"
             state.twitter_running = True
         elif platform == "reddit":
             script_name = "run_reddit_simulation.py"
             state.reddit_running = True
+        elif platform == "linkedin":
+            script_name = "run_linkedin_sumulation.py"
+            state.linkedin_running = True
         else:
             script_name = "run_parallel_simulation.py"
             state.twitter_running = True
             state.reddit_running = True
+            state.linkedin_running = enable_linkedin
         
         script_path = os.path.join(cls.SCRIPTS_DIR, script_name)
         
@@ -422,6 +447,9 @@ class SimulationRunner:
             if max_rounds is not None and max_rounds > 0:
                 cmd.extend(["--max-rounds", str(max_rounds)])
             
+            if platform == "parallel" and enable_linkedin:
+                cmd.append("--enable-linkedin")
+
             # Create main log file to avoid stdout/stderr pipe buffer full causing process to block
             main_log_path = os.path.join(sim_dir, "simulation.log")
             main_log_file = open(main_log_path, 'w', encoding='utf-8')
@@ -482,6 +510,7 @@ class SimulationRunner:
         # New log structure: per-platform action logs
         twitter_actions_log = os.path.join(sim_dir, "twitter", "actions.jsonl")
         reddit_actions_log = os.path.join(sim_dir, "reddit", "actions.jsonl")
+        linkedin_actions_log = os.path.join(sim_dir, "linkedin", "actions.jsonl")
         
         process = cls._processes.get(simulation_id)
         state = cls.get_run_state(simulation_id)
@@ -491,6 +520,7 @@ class SimulationRunner:
         
         twitter_position = 0
         reddit_position = 0
+        linkedin_position = 0
         
         try:
             while process.poll() is None:  # Process still running
@@ -505,6 +535,10 @@ class SimulationRunner:
                     reddit_position = cls._read_action_log(
                         reddit_actions_log, reddit_position, state, "reddit"
                     )
+                if os.path.exists(linkedin_actions_log):
+                    linkedin_position = cls._read_action_log(
+                        linkedin_actions_log, linkedin_position, state, "linkedin"
+                    )
                 
                 # Update state
                 cls._save_run_state(state)
@@ -515,6 +549,8 @@ class SimulationRunner:
                 cls._read_action_log(twitter_actions_log, twitter_position, state, "twitter")
             if os.path.exists(reddit_actions_log):
                 cls._read_action_log(reddit_actions_log, reddit_position, state, "reddit")
+            if os.path.exists(linkedin_actions_log):
+                cls._read_action_log(linkedin_actions_log, linkedin_position, state, "linkedin")
             
             # Process ended
             exit_code = process.returncode
@@ -539,6 +575,7 @@ class SimulationRunner:
             
             state.twitter_running = False
             state.reddit_running = False
+            state.linkedin_running = False
             cls._save_run_state(state)
             
         except Exception as e:
@@ -590,7 +627,7 @@ class SimulationRunner:
             log_path: Log file path
             position: Last read position
             state: Run state object
-            platform: Platform name (twitter/reddit)
+            platform: Platform name (twitter/reddit/linkedin)
             
         Returns:
             New read position
@@ -624,6 +661,10 @@ class SimulationRunner:
                                         state.reddit_completed = True
                                         state.reddit_running = False
                                         logger.info(f"Reddit simulation complete: {state.simulation_id}, total_rounds={action_data.get('total_rounds')}, total_actions={action_data.get('total_actions')}")
+                                    elif platform == "linkedin":
+                                        state.linkedin_completed = True
+                                        state.linkedin_running = False
+                                        logger.info(f"LinkedIn simulation complete: {state.simulation_id}, total_rounds={action_data.get('total_rounds')}, total_actions={action_data.get('total_actions')}")
                                     
                                     # Check if all enabled platforms have completed
                                     # If only one platform is running, only check that platform
@@ -648,12 +689,20 @@ class SimulationRunner:
                                         if round_num > state.reddit_current_round:
                                             state.reddit_current_round = round_num
                                         state.reddit_simulated_hours = simulated_hours
+                                    elif platform == "linkedin":
+                                        if round_num > state.linkedin_current_round:
+                                            state.linkedin_current_round = round_num
+                                        state.linkedin_simulated_hours = simulated_hours
                                     
                                     # Overall rounds takes max of both platforms
                                     if round_num > state.current_round:
                                         state.current_round = round_num
                                     # Overall time takes max of both platforms
-                                    state.simulated_hours = max(state.twitter_simulated_hours, state.reddit_simulated_hours)
+                                    state.simulated_hours = max(
+                                        state.twitter_simulated_hours,
+                                        state.reddit_simulated_hours,
+                                        state.linkedin_simulated_hours
+                                    )
                                 
                                 # Handle LLM info events
                                 elif event_type == "llm_info":
@@ -694,28 +743,36 @@ class SimulationRunner:
     def _check_all_platforms_completed(cls, state: SimulationRunState) -> bool:
         """
         Check whether all enabled platforms have completed simulation
-        
-        Determines if a platform is enabled by checking whether the corresponding actions.jsonl file exists
-        
+
         Returns:
             True if all enabled platforms have completed
         """
-        sim_dir = os.path.join(cls.RUN_STATE_DIR, state.simulation_id)
-        twitter_log = os.path.join(sim_dir, "twitter", "actions.jsonl")
-        reddit_log = os.path.join(sim_dir, "reddit", "actions.jsonl")
-        
-        # Check which platforms are enabled (determined by file existence)
-        twitter_enabled = os.path.exists(twitter_log)
-        reddit_enabled = os.path.exists(reddit_log)
-        
+        twitter_enabled = (
+            state.twitter_running
+            or state.twitter_completed
+            or state.twitter_actions_count > 0
+        )
+        reddit_enabled = (
+            state.reddit_running
+            or state.reddit_completed
+            or state.reddit_actions_count > 0
+        )
+        linkedin_enabled = (
+            state.linkedin_running
+            or state.linkedin_completed
+            or state.linkedin_actions_count > 0
+        )
+
         # If platform is enabled but not complete, return False
         if twitter_enabled and not state.twitter_completed:
             return False
         if reddit_enabled and not state.reddit_completed:
             return False
+        if linkedin_enabled and not state.linkedin_completed:
+            return False
         
         # At least one platform is enabled and complete
-        return twitter_enabled or reddit_enabled
+        return twitter_enabled or reddit_enabled or linkedin_enabled
     
     @classmethod
     def _terminate_process(cls, process: subprocess.Popen, simulation_id: str, timeout: int = 10):
@@ -903,7 +960,7 @@ class SimulationRunner:
         
         Args:
             simulation_id: Simulation ID
-            platform: Filter by platform (twitter/reddit)
+            platform: Filter by platform (twitter/reddit/linkedin)
             agent_id: Filter by Agent
             round_num: Filter by round number
             
@@ -930,6 +987,17 @@ class SimulationRunner:
             actions.extend(cls._read_actions_from_file(
                 reddit_actions_log,
                 default_platform="reddit",  # Auto-fill platform field
+                platform_filter=platform,
+                agent_id=agent_id,
+                round_num=round_num
+            ))
+
+        # Read LinkedIn action file (automatically set platform to linkedin based on file path)
+        linkedin_actions_log = os.path.join(sim_dir, "linkedin", "actions.jsonl")
+        if not platform or platform == "linkedin":
+            actions.extend(cls._read_actions_from_file(
+                linkedin_actions_log,
+                default_platform="linkedin",
                 platform_filter=platform,
                 agent_id=agent_id,
                 round_num=round_num
@@ -1021,6 +1089,7 @@ class SimulationRunner:
                     "round_num": round_num,
                     "twitter_actions": 0,
                     "reddit_actions": 0,
+                    "linkedin_actions": 0,
                     "active_agents": set(),
                     "action_types": {},
                     "first_action_time": action.timestamp,
@@ -1031,6 +1100,8 @@ class SimulationRunner:
             
             if action.platform == "twitter":
                 r["twitter_actions"] += 1
+            elif action.platform == "linkedin":
+                r["linkedin_actions"] += 1
             else:
                 r["reddit_actions"] += 1
             

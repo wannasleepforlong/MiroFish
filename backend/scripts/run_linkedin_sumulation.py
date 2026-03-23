@@ -48,6 +48,7 @@ else:
 
 
 import re
+from action_logger import PlatformActionLogger
 
 
 class UnicodeFormatter(logging.Formatter):
@@ -129,6 +130,71 @@ except ImportError as e:
     print(f"Error: missing dependency {e}")
     print("Please install first: pip install oasis-ai camel-ai")
     sys.exit(1)
+
+
+FILTERED_ACTIONS = {'refresh', 'sign_up'}
+
+ACTION_TYPE_MAP = {
+    'create_post': 'CREATE_POST',
+    'like_post': 'LIKE_POST',
+    'repost': 'REPOST',
+    'follow': 'FOLLOW',
+    'create_comment': 'CREATE_COMMENT',
+    'do_nothing': 'DO_NOTHING',
+    'interview': 'INTERVIEW',
+}
+
+
+def get_agent_names_from_config(config: Dict[str, Any]) -> Dict[int, str]:
+    """Build an agent_id -> entity_name mapping from simulation_config."""
+    agent_names = {}
+    for agent_config in config.get("agent_configs", []):
+        agent_id = agent_config.get("agent_id")
+        if agent_id is not None:
+            agent_names[agent_id] = agent_config.get("entity_name", f"Agent_{agent_id}")
+    return agent_names
+
+
+def fetch_new_actions_from_db(db_path: str, last_rowid: int, agent_names: Dict[int, str]):
+    """Fetch newly appended OASIS trace actions from the SQLite database."""
+    actions = []
+    new_last_rowid = last_rowid
+
+    if not os.path.exists(db_path):
+        return actions, new_last_rowid
+
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        cursor.execute("""
+            SELECT rowid, user_id, action, info
+            FROM trace
+            WHERE rowid > ?
+            ORDER BY rowid ASC
+        """, (last_rowid,))
+
+        for rowid, user_id, action, info_json in cursor.fetchall():
+            new_last_rowid = rowid
+            if action in FILTERED_ACTIONS:
+                continue
+
+            try:
+                action_args = json.loads(info_json) if info_json else {}
+            except json.JSONDecodeError:
+                action_args = {}
+
+            actions.append({
+                "agent_id": user_id,
+                "agent_name": agent_names.get(user_id, f"Agent_{user_id}"),
+                "action_type": ACTION_TYPE_MAP.get(action, action.upper()),
+                "action_args": action_args,
+            })
+
+        conn.close()
+    except Exception as e:
+        print(f"  Warning: failed to read LinkedIn actions from DB: {e}")
+
+    return actions, new_last_rowid
 
 
 # IPC-related constants
@@ -642,6 +708,7 @@ class LinkedInSimulationRunner:
         Establish initial connections between agents in the same professional field.
         """
         clusters = self._cluster_agents_by_field(profile_path)
+        populated_cluster_count = sum(1 for agent_ids in clusters.values() if len(agent_ids) >= 2)
         
         connection_count = 0
         for field, agent_ids in clusters.items():
@@ -672,12 +739,12 @@ class LinkedInSimulationRunner:
                             # Connection: A -> B
                             initial_connections[agent].append(ManualAction(
                                 action_type=ActionType.FOLLOW,
-                                action_args={"user_id": peer_id}
+                                action_args={"follow_id": peer_id}
                             ))
                             # Connection: B -> A
                             initial_connections[peer_agent].append(ManualAction(
                                 action_type=ActionType.FOLLOW,
-                                action_args={"user_id": agent_id}
+                                action_args={"follow_id": agent_id}
                             ))
                             connection_count += 1
                         except Exception:
@@ -688,8 +755,12 @@ class LinkedInSimulationRunner:
             if initial_connections and self.env:
                 await self.env.step(initial_connections)
         
+        print(f"Connections found in linkedin: {connection_count}")
+        print(f"  LinkedIn clusters with connectable peers: {populated_cluster_count}")
         if connection_count > 0:
             print(f"  Network built: established {connection_count} mutual professional connections.")
+        else:
+            print("  No reciprocal LinkedIn connections were created from the current profiles.")
 
     async def run(self, max_rounds: int = None):
         """Run the LinkedIn simulation.
@@ -723,6 +794,10 @@ class LinkedInSimulationRunner:
         if max_rounds:
             print(f"  - Max round limit: {max_rounds}")
         print(f"  - Agent count: {len(self.config.get('agent_configs', []))}")
+
+        action_logger = PlatformActionLogger("linkedin", self.simulation_dir)
+        action_logger.log_simulation_start(self.config)
+        agent_names = get_agent_names_from_config(self.config)
 
         # ------------------------------------------------------------------
         # Build the pool of camel models (one per LLM config)
@@ -801,6 +876,9 @@ class LinkedInSimulationRunner:
         event_config = self.config.get("event_config", {})
         initial_posts = event_config.get("initial_posts", [])
 
+        action_logger.log_round_start(0, 0)
+        initial_action_count = 0
+
         if initial_posts:
             print(f"Run initial events ({len(initial_posts)} initial posts)...")
             initial_actions = {}
@@ -823,21 +901,36 @@ class LinkedInSimulationRunner:
                                 action_type=ActionType.CREATE_POST,
                                 action_args={"content": content}
                             )
+                        action_logger.log_action(
+                            round_num=0,
+                            agent_id=agent_id,
+                            agent_name=agent_names.get(agent_id, f"Agent_{agent_id}"),
+                            action_type="CREATE_POST",
+                            action_args={"content": content}
+                        )
+                        initial_action_count += 1
                 except Exception as e:
                     print(f"  Warning: failed to create an initial post for agent {agent_id}: {e}")
 
             if initial_actions and self.env is not None:
                 await self.env.step(initial_actions)
                 print(f"  Published {len(initial_actions)} initial posts")
+                print(f"  Logged {initial_action_count} LinkedIn seed actions")
+        action_logger.log_round_end(0, initial_action_count)
 
         # Main simulation loop
         print("\nStart the simulation loop...")
         start_time = datetime.now()
+        total_actions = initial_action_count
+        last_rowid = 0
 
         for round_num in range(total_rounds):
             simulated_minutes = round_num * minutes_per_round
             simulated_hour = (simulated_minutes // 60) % 24
             simulated_day = simulated_minutes // (60 * 24) + 1
+            active_agents = []
+
+            action_logger.log_round_start(round_num + 1, simulated_hour)
 
             if self.env is not None:
                 active_agents = self._get_active_agents_for_round(
@@ -845,6 +938,8 @@ class LinkedInSimulationRunner:
                 )
 
                 if not active_agents:
+                    print(f"  [Round {round_num + 1}] No active LinkedIn agents at {simulated_hour:02d}:00")
+                    action_logger.log_round_end(round_num + 1, 0)
                     continue
 
                 actions = {
@@ -853,6 +948,24 @@ class LinkedInSimulationRunner:
                 }
 
                 await self.env.step(actions)
+
+                actual_actions, last_rowid = fetch_new_actions_from_db(db_path, last_rowid, agent_names)
+                round_action_count = 0
+                for action_data in actual_actions:
+                    action_logger.log_action(
+                        round_num=round_num + 1,
+                        agent_id=action_data["agent_id"],
+                        agent_name=action_data["agent_name"],
+                        action_type=action_data["action_type"],
+                        action_args=action_data["action_args"]
+                    )
+                    total_actions += 1
+                    round_action_count += 1
+                action_logger.log_round_end(round_num + 1, round_action_count)
+                print(
+                    f"  [Round {round_num + 1}] LinkedIn active agents={len(active_agents)} "
+                    f"logged_actions={round_action_count}"
+                )
 
             if (round_num + 1) % 10 == 0 or round_num == 0:
                 elapsed = (datetime.now() - start_time).total_seconds()
@@ -866,6 +979,7 @@ class LinkedInSimulationRunner:
         print(f"\nSimulation loop completed!")
         print(f"  - Total elapsed time: {total_elapsed:.1f}s")
         print(f"  - Database: {db_path}")
+        action_logger.log_simulation_end(total_rounds, total_actions)
 
         # Optionally enter command-wait mode
         if self.wait_for_commands:

@@ -1580,6 +1580,41 @@ async def run_reddit_simulation(
     return result
 
 
+async def run_linkedin_sidecar(
+    config_path: str,
+    simulation_dir: str,
+    max_rounds: Optional[int] = None,
+    main_logger: Optional[SimulationLogManager] = None
+) -> int:
+    """Run the standalone LinkedIn simulation script as a sidecar subprocess."""
+    script_path = os.path.join(_scripts_dir, "run_linkedin_sumulation.py")
+    if not os.path.exists(script_path):
+        if main_logger:
+            main_logger.warning(f"[LinkedIn] Sidecar script missing: {script_path}")
+        return 1
+
+    cmd = [sys.executable, script_path, "--config", config_path, "--no-wait"]
+    if max_rounds is not None and max_rounds > 0:
+        cmd.extend(["--max-rounds", str(max_rounds)])
+
+    if main_logger:
+        main_logger.info("[LinkedIn] Launching sidecar simulation")
+
+    process = await asyncio.create_subprocess_exec(
+        *cmd,
+        cwd=simulation_dir,
+    )
+    exit_code = await process.wait()
+
+    if main_logger:
+        if exit_code == 0:
+            main_logger.info("[LinkedIn] Sidecar simulation completed")
+        else:
+            main_logger.warning(f"[LinkedIn] Sidecar simulation exited with code {exit_code}")
+
+    return exit_code
+
+
 async def main():
     parser = argparse.ArgumentParser(description='OASIS dual-platform (Twitter + Reddit) parallel simulation')
     parser.add_argument(
@@ -1597,6 +1632,11 @@ async def main():
         '--reddit-only',
         action='store_true',
         help='Run only the Reddit simulation'
+    )
+    parser.add_argument(
+        '--enable-linkedin',
+        action='store_true',
+        help='Also run the LinkedIn simulation sidecar alongside Twitter and Reddit'
     )
     parser.add_argument(
         '--max-rounds',
@@ -1654,11 +1694,14 @@ async def main():
         if args.max_rounds < config_total_rounds:
             log_manager.info(f"  - Actual executed rounds: {args.max_rounds} (capped)")
     log_manager.info(f"  - Agent count: {len(config.get('agent_configs', []))}")
+    log_manager.info(f"  - LinkedIn enabled: {'yes' if args.enable_linkedin else 'no'}")
     
     log_manager.info("Log layout:")
     log_manager.info(f"  - Main log: simulation.log")
     log_manager.info(f"  - Twitter actions: twitter/actions.jsonl")
     log_manager.info(f"  - Reddit actions: reddit/actions.jsonl")
+    if args.enable_linkedin:
+        log_manager.info(f"  - LinkedIn actions: linkedin/actions.jsonl")
     log_manager.info("=" * 60)
     
     start_time = datetime.now()
@@ -1673,11 +1716,16 @@ async def main():
         reddit_result = await run_reddit_simulation(config, simulation_dir, reddit_logger, log_manager, args.max_rounds)
     else:
         # Run in parallel (each platform uses its own logger)
-        results = await asyncio.gather(
+        parallel_tasks = [
             run_twitter_simulation(config, simulation_dir, twitter_logger, log_manager, args.max_rounds),
             run_reddit_simulation(config, simulation_dir, reddit_logger, log_manager, args.max_rounds),
-        )
-        twitter_result, reddit_result = results
+        ]
+        if args.enable_linkedin:
+            parallel_tasks.append(
+                run_linkedin_sidecar(args.config, simulation_dir, args.max_rounds, log_manager)
+            )
+        results = await asyncio.gather(*parallel_tasks)
+        twitter_result, reddit_result = results[0], results[1]
     
     total_elapsed = (datetime.now() - start_time).total_seconds()
     log_manager.info("=" * 60)

@@ -40,14 +40,14 @@
       <div class="grid-wrapper scrollbar-thin overflow-x-auto" ref="gridWrapper">
         <div class="grid-container" :style="gridStyle">
           <!-- Column Labels (Rounds) -->
-          <div class="grid-col-labels">
+          <div class="grid-col-labels" :style="gridStyle">
             <div v-for="c in maxRoundsDisplay" :key="c" class="x-label">
               R{{ c }}
             </div>
           </div>
 
           <!-- Grid Cells -->
-          <div v-for="(row, idx) in processedData" :key="row.id" class="grid-row">
+          <div v-for="(row, idx) in processedData" :key="row.id" class="grid-row" :style="gridStyle">
             <div 
               v-for="round_num in maxRoundsDisplay" 
               :key="round_num" 
@@ -95,6 +95,12 @@ const mode = ref('actions') // 'actions' | 'agents'
 const hoverCell = ref(null)
 const gridWrapper = ref(null)
 
+const normalizedActions = computed(() => {
+  return (props.actions || []).filter(action => {
+    return action && typeof action.round_num === 'number' && action.round_num > 0
+  })
+})
+
 const maxRoundsDisplay = computed(() => {
   return props.rounds || 1
 })
@@ -102,9 +108,9 @@ const maxRoundsDisplay = computed(() => {
 const processedData = computed(() => {
   const totalRounds = maxRoundsDisplay.value
   
-  if (props.actions.length === 0) {
+  if (normalizedActions.value.length === 0) {
     if (mode.value === 'actions') {
-      return ['POST', 'REPOST', 'LIKE', 'COMMENT'].map(name => ({
+      return ['POST', 'REPOST', 'LIKE', 'COMMENT', 'FOLLOW'].map(name => ({
         id: name,
         name,
         activity: {}
@@ -117,14 +123,14 @@ const processedData = computed(() => {
     // Action Types as rows
     const actionTypes = [
       'CREATE_POST', 'QUOTE_POST', 'REPOST', 'LIKE_POST', 
-      'CREATE_COMMENT', 'SEARCH_POSTS', 'FOLLOW', 
-      'UPVOTE_POST', 'DOWNVOTE_POST'
+      'CREATE_COMMENT', 'LIKE_COMMENT', 'SEARCH_POSTS', 'FOLLOW',
+      'UPVOTE_POST', 'DOWNVOTE_POST', 'DO_NOTHING'
     ]
     
     return actionTypes.map(type => {
       const activity = {}
       for (let r = 1; r <= totalRounds; r++) {
-        activity[r] = props.actions.filter(a => a.action_type === type && a.round_num === r).length
+        activity[r] = normalizedActions.value.filter(a => a.action_type === type && a.round_num === r).length
       }
       return {
         id: type,
@@ -135,9 +141,9 @@ const processedData = computed(() => {
   } else {
     // Agents as rows (Top 15 most active)
     const agentActivity = {}
-    props.actions.forEach(a => {
+    normalizedActions.value.forEach(a => {
       if (!agentActivity[a.agent_id]) {
-        agentActivity[a.agent_id] = { id: a.agent_id, name: a.agent_name, total: 0, activity: {} }
+        agentActivity[a.agent_id] = { id: a.agent_id, name: a.agent_name || `Agent ${a.agent_id}`, total: 0, activity: {} }
       }
       agentActivity[a.agent_id].total++
       agentActivity[a.agent_id].activity[a.round_num] = (agentActivity[a.agent_id].activity[a.round_num] || 0) + 1
@@ -174,10 +180,12 @@ const simplifyActionName = (type) => {
     'REPOST': t('trends.repost'),
     'LIKE_POST': t('trends.like'),
     'CREATE_COMMENT': t('trends.comment'),
+    'LIKE_COMMENT': t('trends.like'),
     'SEARCH_POSTS': t('trends.search'),
     'FOLLOW': t('trends.follow'),
     'UPVOTE_POST': t('trends.upvote'),
-    'DOWNVOTE_POST': t('trends.downvote')
+    'DOWNVOTE_POST': t('trends.downvote'),
+    'DO_NOTHING': 'IDLE'
   }
   return map[type] || type
 }
@@ -316,8 +324,6 @@ watch(maxRoundsDisplay, (newVal) => {
 
 .grid-col-labels {
   display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
   height: 24px;
 }
 
@@ -331,8 +337,6 @@ watch(maxRoundsDisplay, (newVal) => {
 
 .grid-row {
   display: grid;
-  grid-template-columns: subgrid;
-  grid-column: 1 / -1;
   height: 24px;
 }
 

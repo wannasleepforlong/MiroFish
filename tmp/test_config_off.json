@@ -1,0 +1,8 @@
+{
+  "simulation_id": "test_sim_off",
+  "project_id": "test_proj",
+  "graph_id": "test_graph",
+  "enable_linkedin_connections": false,
+  "agent_configs": [],
+  "event_config": {"initial_posts": []}
+}

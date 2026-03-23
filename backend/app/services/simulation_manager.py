@@ -37,6 +37,7 @@ class PlatformType(str, Enum):
     """Platform type"""
     TWITTER = "twitter"
     REDDIT = "reddit"
+    LINKEDIN = "linkedin"
 
 
 @dataclass
@@ -49,6 +50,7 @@ class SimulationState:
     # Platform enabled status
     enable_twitter: bool = True
     enable_reddit: bool = True
+    enable_linkedin: bool = True
     
     # Status
     status: SimulationStatus = SimulationStatus.CREATED
@@ -66,6 +68,7 @@ class SimulationState:
     current_round: int = 0
     twitter_status: str = "not_started"
     reddit_status: str = "not_started"
+    linkedin_status: str = "not_started"
     
     # Timestamps
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -82,6 +85,7 @@ class SimulationState:
             "graph_id": self.graph_id,
             "enable_twitter": self.enable_twitter,
             "enable_reddit": self.enable_reddit,
+            "enable_linkedin": self.enable_linkedin,
             "status": self.status.value,
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
@@ -91,6 +95,7 @@ class SimulationState:
             "current_round": self.current_round,
             "twitter_status": self.twitter_status,
             "reddit_status": self.reddit_status,
+            "linkedin_status": self.linkedin_status,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "error": self.error,
@@ -173,6 +178,7 @@ class SimulationManager:
             graph_id=data.get("graph_id", ""),
             enable_twitter=data.get("enable_twitter", True),
             enable_reddit=data.get("enable_reddit", True),
+            enable_linkedin=data.get("enable_linkedin", False),
             status=SimulationStatus(data.get("status", "created")),
             entities_count=data.get("entities_count", 0),
             profiles_count=data.get("profiles_count", 0),
@@ -182,6 +188,7 @@ class SimulationManager:
             current_round=data.get("current_round", 0),
             twitter_status=data.get("twitter_status", "not_started"),
             reddit_status=data.get("reddit_status", "not_started"),
+            linkedin_status=data.get("linkedin_status", "not_started"),
             created_at=data.get("created_at", datetime.now().isoformat()),
             updated_at=data.get("updated_at", datetime.now().isoformat()),
             error=data.get("error"),
@@ -196,6 +203,7 @@ class SimulationManager:
         graph_id: str,
         enable_twitter: bool = True,
         enable_reddit: bool = True,
+        enable_linkedin: bool = True,
     ) -> SimulationState:
         """
         Create a new simulation
@@ -205,6 +213,7 @@ class SimulationManager:
             graph_id: Zep graph ID
             enable_twitter: Whether to enable Twitter simulation
             enable_reddit: Whether to enable Reddit simulation
+            enable_linkedin: Whether to enable LinkedIn simulation
             
         Returns:
             SimulationState
@@ -218,6 +227,7 @@ class SimulationManager:
             graph_id=graph_id,
             enable_twitter=enable_twitter,
             enable_reddit=enable_reddit,
+            enable_linkedin=enable_linkedin,
             status=SimulationStatus.CREATED,
         )
         
@@ -332,6 +342,9 @@ class SimulationManager:
             if state.enable_reddit:
                 realtime_output_path = os.path.join(sim_dir, "reddit_profiles.json")
                 realtime_platform = "reddit"
+            elif state.enable_linkedin:
+                realtime_output_path = os.path.join(sim_dir, "linkedin_profiles.csv")
+                realtime_platform = "twitter"
             elif state.enable_twitter:
                 realtime_output_path = os.path.join(sim_dir, "twitter_profiles.csv")
                 realtime_platform = "twitter"
@@ -372,6 +385,14 @@ class SimulationManager:
                     file_path=os.path.join(sim_dir, "twitter_profiles.csv"),
                     platform="twitter"
                 )
+
+            if state.enable_linkedin:
+                # LinkedIn reuses the Twitter-style CSV profile schema.
+                generator.save_profiles(
+                    profiles=profiles,
+                    file_path=os.path.join(sim_dir, "linkedin_profiles.csv"),
+                    platform="twitter"
+                )
             
             if progress_callback:
                 progress_callback(
@@ -408,7 +429,8 @@ class SimulationManager:
                 document_text=document_text,
                 entities=filtered.entities,
                 enable_twitter=state.enable_twitter,
-                enable_reddit=state.enable_reddit
+                enable_reddit=state.enable_reddit,
+                enable_linkedin=state.enable_linkedin
             )
             
             if progress_callback:
@@ -517,6 +539,7 @@ class SimulationManager:
             "commands": {
                 "twitter": f"python {scripts_dir}/run_twitter_simulation.py --config {config_path}",
                 "reddit": f"python {scripts_dir}/run_reddit_simulation.py --config {config_path}",
+                "linkedin": f"python {scripts_dir}/run_linkedin_sumulation.py --config {config_path}",
                 "parallel": f"python {scripts_dir}/run_parallel_simulation.py --config {config_path}",
             },
             "instructions": (
@@ -524,6 +547,7 @@ class SimulationManager:
                 f"2. Run simulation (scripts located at {scripts_dir}):\n"
                 f"   - Run Twitter only: python {scripts_dir}/run_twitter_simulation.py --config {config_path}\n"
                 f"   - Run Reddit only: python {scripts_dir}/run_reddit_simulation.py --config {config_path}\n"
+                f"   - Run LinkedIn only: python {scripts_dir}/run_linkedin_sumulation.py --config {config_path}\n"
                 f"   - Run both platforms in parallel: python {scripts_dir}/run_parallel_simulation.py --config {config_path}"
             )
         }

@@ -271,6 +271,7 @@
                   <span class="message-time">{{ formatTime(msg.timestamp) }}</span>
                 </div>
                 <div class="message-text" v-html="renderMarkdown(msg.content)"></div>
+                <div v-if="msg.role === 'assistant' && msg.sourceLabel" class="message-footer">{{ msg.sourceLabel }}</div>
               </div>
             </div>
             <div v-if="isSending" class="chat-message assistant">
@@ -401,6 +402,7 @@
                   <span>{{ result.question }}</span>
                 </div>
                 <div class="result-answer" v-html="renderMarkdown(result.answer)"></div>
+                <div v-if="result.sourceLabel" class="result-footer">{{ result.sourceLabel }}</div>
               </div>
             </div>
           </div>
@@ -641,6 +643,13 @@ const renderMarkdown = (content) => {
   return html
 }
 
+const getPlatformDisplayName = (platform) => {
+  if (platform === 'twitter') return 'Info Plaza'
+  if (platform === 'reddit') return 'Topic Community'
+  if (platform === 'linkedin') return 'Professional Network'
+  return ''
+}
+
 // Chat Methods
 const sendMessage = async () => {
   if (!chatInput.value.trim() || isSending.value) return
@@ -701,7 +710,8 @@ const sendToReportAgent = async (message) => {
     chatHistory.value.push({
       role: 'assistant',
       content: res.data.response || res.data.answer || '无响应',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      sourceLabel: 'Report Agent'
     })
     addLog('Report Agent 已回复')
   } else {
@@ -743,26 +753,31 @@ const sendToAgent = async (message) => {
     
     // Convert object dictionary to array, prefer reddit platform replies
     let responseContent = null
+    let responsePlatform = ''
     const agentId = selectedAgentIndex.value
     
     if (typeof resultsDict === 'object' && !Array.isArray(resultsDict)) {
       // Prefer reddit platform replies, then twitter
       const redditKey = `reddit_${agentId}`
       const twitterKey = `twitter_${agentId}`
-      const agentResult = resultsDict[redditKey] || resultsDict[twitterKey] || Object.values(resultsDict)[0]
+      const linkedinKey = `linkedin_${agentId}`
+      const agentResult = resultsDict[redditKey] || resultsDict[twitterKey] || resultsDict[linkedinKey] || Object.values(resultsDict)[0]
       if (agentResult) {
         responseContent = agentResult.response || agentResult.answer
+        responsePlatform = agentResult.platform || (resultsDict[redditKey] ? 'reddit' : resultsDict[twitterKey] ? 'twitter' : resultsDict[linkedinKey] ? 'linkedin' : '')
       }
     } else if (Array.isArray(resultsDict) && resultsDict.length > 0) {
       // Compatible with array format
       responseContent = resultsDict[0].response || resultsDict[0].answer
+      responsePlatform = resultsDict[0].platform || ''
     }
     
     if (responseContent) {
       chatHistory.value.push({
         role: 'assistant',
         content: responseContent,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        sourceLabel: `${getPlatformDisplayName(responsePlatform)}${selectedAgent.value?.username ? ` • ${selectedAgent.value.username}` : ''}`.trim()
       })
       addLog(`${selectedAgent.value.username} 已回复`)
     } else {
@@ -834,19 +849,23 @@ const submitSurvey = async () => {
         
         // Prefer reddit platform replies, then twitter
         let responseContent = '无响应'
+        let responsePlatform = ''
         
         if (typeof resultsDict === 'object' && !Array.isArray(resultsDict)) {
           const redditKey = `reddit_${agentIdx}`
           const twitterKey = `twitter_${agentIdx}`
-          const agentResult = resultsDict[redditKey] || resultsDict[twitterKey]
+          const linkedinKey = `linkedin_${agentIdx}`
+          const agentResult = resultsDict[redditKey] || resultsDict[twitterKey] || resultsDict[linkedinKey]
           if (agentResult) {
             responseContent = agentResult.response || agentResult.answer || '无响应'
+            responsePlatform = agentResult.platform || (resultsDict[redditKey] ? 'reddit' : resultsDict[twitterKey] ? 'twitter' : resultsDict[linkedinKey] ? 'linkedin' : '')
           }
         } else if (Array.isArray(resultsDict)) {
           // Compatible with array format
           const matchedResult = resultsDict.find(r => r.agent_id === agentIdx)
           if (matchedResult) {
             responseContent = matchedResult.response || matchedResult.answer || '无响应'
+            responsePlatform = matchedResult.platform || ''
           }
         }
         
@@ -855,7 +874,8 @@ const submitSurvey = async () => {
           agent_name: agent?.username || `Agent ${agentIdx}`,
           profession: agent?.profession,
           question: surveyQuestion.value.trim(),
-          answer: responseContent
+          answer: responseContent,
+          sourceLabel: `${getPlatformDisplayName(responsePlatform)}${agent?.username ? ` • ${agent.username}` : ''}`.trim()
         })
       }
       
@@ -2067,6 +2087,15 @@ watch(() => props.simulationId, (newId) => {
   margin: 4px 0;
 }
 
+.message-footer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  font-size: 11px;
+  color: #8B94A7;
+  font-family: 'JetBrains Mono', monospace;
+}
+
 /* Typing Indicator */
 .typing-indicator {
   display: flex;
@@ -2492,6 +2521,15 @@ watch(() => props.simulationId, (newId) => {
   font-size: 14px;
   line-height: 1.7;
   color: #374151;
+}
+
+.result-footer {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #E2E8F0;
+  font-size: 11px;
+  color: #64748B;
+  font-family: 'JetBrains Mono', monospace;
 }
 
 /* Markdown Styles */
