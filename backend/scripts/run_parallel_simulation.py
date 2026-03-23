@@ -1739,15 +1739,16 @@ async def main():
     log_manager.info("=" * 60)
     log_manager.info(f"Simulation loop completed! Total time: {total_elapsed:.1f}s")
     
-    # Optionally enter command-wait mode
-    if wait_for_commands:
-        log_manager.info("")
-        log_manager.info("=" * 60)
-        log_manager.info("Enter command-wait mode - environment stays alive")
-        log_manager.info("Supported commands: interview, batch_interview, close_env")
-        log_manager.info("=" * 60)
-        
-        # Create IPC handler
+    # Always try to enter command-wait mode to accept interview commands
+    # Keep environments alive regardless of wait_for_commands setting
+    log_manager.info("")
+    log_manager.info("=" * 60)
+    log_manager.info("Entering command-wait mode - environment stays alive for interviews")
+    log_manager.info("Supported commands: interview, batch_interview, close_env")
+    log_manager.info("=" * 60)
+    
+    try:
+        # Create IPC handler with open environments
         ipc_handler = ParallelIPCHandler(
             simulation_dir=simulation_dir,
             twitter_env=twitter_result.env if twitter_result else None,
@@ -1756,37 +1757,58 @@ async def main():
             reddit_agent_graph=reddit_result.agent_graph if reddit_result else None
         )
         ipc_handler.update_status("alive")
+        log_manager.info("IPC handler initialized and environment marked as alive")
         
         # Command wait loop (uses global _shutdown_event)
+        command_loop_active = True
         try:
-            while not _shutdown_event.is_set():
+            while not _shutdown_event.is_set() and command_loop_active:
                 should_continue = await ipc_handler.process_commands()
                 if not should_continue:
+                    log_manager.info("Received close_env command, exiting command-wait mode")
                     break
                 # Use wait_for instead of sleep so we can react to shutdown_event
                 try:
                     await asyncio.wait_for(_shutdown_event.wait(), timeout=0.5)
+                    log_manager.info("Received shutdown signal, exiting command-wait mode")
                     break  # Received shutdown signal
                 except asyncio.TimeoutError:
                     pass  # Timeout, continue loop
         except KeyboardInterrupt:
-            print("\nReceived interrupt signal")
+            log_manager.info("Received keyboard interrupt signal")
         except asyncio.CancelledError:
-            print("\nTask cancelled")
+            log_manager.info("Task cancelled")
         except Exception as e:
-            print(f"\nCommand processing error: {e}")
-        
-        log_manager.info("\nClose environment...")
-        ipc_handler.update_status("stopped")
+            log_manager.error(f"Command processing error: {e}")
+            import traceback
+            log_manager.error(traceback.format_exc())
+        finally:
+            log_manager.info("Exiting command-wait mode...")
+            try:
+                ipc_handler.update_status("stopped")
+            except Exception as e:
+                log_manager.error(f"Error updating status: {e}")
+    
+    except Exception as e:
+        log_manager.error(f"Failed to initialize IPC handler: {e}")
+        import traceback
+        log_manager.error(traceback.format_exc())
     
     # Close environments
+    log_manager.info("Closing simulation environments...")
     if twitter_result and twitter_result.env:
-        await twitter_result.env.close()
-        log_manager.info("[Twitter] Environment closed")
+        try:
+            await twitter_result.env.close()
+            log_manager.info("[Twitter] Environment closed")
+        except Exception as e:
+            log_manager.error(f"Error closing Twitter environment: {e}")
     
     if reddit_result and reddit_result.env:
-        await reddit_result.env.close()
-        log_manager.info("[Reddit] Environment closed")
+        try:
+            await reddit_result.env.close()
+            log_manager.info("[Reddit] Environment closed")
+        except Exception as e:
+            log_manager.error(f"Error closing Reddit environment: {e}")
     
     log_manager.info("=" * 60)
     log_manager.info(f"All done!")

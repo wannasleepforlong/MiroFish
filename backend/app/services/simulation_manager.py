@@ -322,48 +322,53 @@ class SimulationManager:
 }}"""
         else:
             system_prompt = (
-                "You are a social simulation design expert. Infer up to 3 relevant entities "
-                "that are not explicitly named in the uploaded material but are strongly relevant "
-                "to the topic and plausible participants in public social discussion. "
-                "The provided graph entity names are a hard exclusion list: never repeat them, rename them, "
-                "or return near-duplicates of them. Return JSON only."
+                "You are a social simulation design expert. Your task is to infer stakeholder groups "
+                "and influential actors that are NOT explicitly mentioned in the materials but would "
+                "naturally participate in discussions around this topic. Think like a PR strategist: "
+                "who else matters? Who would react? Who has power? Return diverse entity types, not just generic 'Person' or 'Organization'. "
+                "The provided entity names are strictly forbidden—never return them or close variants. Return JSON only."
             )
-            user_prompt = f"""Based on the materials below, infer up to {max_entities} relevant entities that are missing from the uploaded source.
+            user_prompt = f"""Based on the scenario below, discover up to {max_entities} STRATEGIC stakeholders or influential groups missing from the source material.
+
+Think across these dimensions:
+- Direct participants: who's directly affected but not mentioned?
+- Influencers & amplifiers: who shapes opinion? (media, influencers, thought leaders, critics)
+- Regulators & gatekeepers: who has power to regulate or block? (agencies, standards bodies, NGOs)
+- Competitors & alternatives: who benefits from a different outcome?
+- Communities & constituencies: organized groups with shared interests?
 
 Rules:
-1. Do not repeat existing entities and do not return abstract concepts.
-2. Treat the “entity names already found in the graph” list below as a strict exclusion list. Your answers must be clearly different from those entities, not aliases, renamed variants, title variants, parent/subsidiary restatements, or lightly rephrased duplicates of the same real-world actor.
-2. Each entity must be a plausible social actor that could post, react, or be discussed publicly: person, organization, institution, media outlet, company, community, agency, etc.
-3. Reuse an existing entity type when it fits; otherwise provide the closest sensible type.
-4. If there are no reliable additions, return an empty array.
-5. Keep each summary to 1-2 sentences explaining identity and relevance.
+1. DIVERSITY: Return a mix of entity types—aim for different roles/perspectives, not multiple instances of the same type.
+2. EXCLUSION: The "entity names already in graph" is a hard block. Absolutely no repeats, aliases, or rephrases.
+3. RELEVANCE: Each must be a real, plausible actor in public discourse (person, organization, media outlet, movement, agency, etc.)
+4. SPECIFICITY: "Influencers" > "People". "Environmental NGOs" > "Organizations". Be concrete.
+5. No abstract concepts: only entities that could post, react, or be discussed on social platforms.
+6. If you find < 2 unique additions, return empty array rather than forcing weak matches.
 
-Simulation requirement:
+Simulation topic:
 {simulation_requirement[:3000]}
 
-Document excerpt:
+Background:
 {document_text[:6000]}
 
-Existing entity types:
+Existing types already in use:
 {json.dumps(existing_types, ensure_ascii=False)}
 
-Entity names already found in the graph (strict exclusion list):
+FORBIDDEN—these names are already in the graph, never use them:
 {json.dumps(existing_name_list, ensure_ascii=False, indent=2)}
-
 
 Return format:
 {{
   "discovered_entities": [
     {{
-      "name": "Entity name",
-      "entity_type": "Entity type",
-      "summary": "Short identity and relevance summary",
-      "why_relevant": "Why this entity matters to the simulation"
+      "name": "Specific entity name (not generic)",
+      "entity_type": "Specific type (e.g. 'EnvironmentalNGO', 'MediaOutlet', 'CompetitorCompany')",
+      "summary": "Who they are and why they matter to this scenario",
+      "why_relevant": "What stake/power do they have here?"
     }}
   ],
-  "reasoning": "Short explanation"
+  "reasoning": "Why these specific actors matter; brief diversity analysis"
 }}"""
-
         try:
             llm = LLMClient()
             response = llm.chat_json(
