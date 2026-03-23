@@ -723,6 +723,8 @@ def fetch_new_actions_from_db(
                 simplified_args['new_post_id'] = action_args['new_post_id']
             if 'follow_id' in action_args:
                 simplified_args['follow_id'] = action_args['follow_id']
+            if 'followee_id' in action_args:
+                simplified_args['followee_id'] = action_args['followee_id']
             if 'query' in action_args:
                 simplified_args['query'] = action_args['query']
             if 'like_id' in action_args:
@@ -822,6 +824,12 @@ def _enrich_action_context(
                 row = cursor.fetchone()
                 if row:
                     followee_id = row[0]
+                    target_name = _get_user_name(cursor, followee_id, agent_names)
+                    if target_name:
+                        action_args['target_user_name'] = target_name
+            else:
+                followee_id = action_args.get('followee_id')
+                if followee_id is not None:
                     target_name = _get_user_name(cursor, followee_id, agent_names)
                     if target_name:
                         action_args['target_user_name'] = target_name

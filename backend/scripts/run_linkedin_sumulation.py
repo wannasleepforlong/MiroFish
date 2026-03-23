@@ -739,12 +739,12 @@ class LinkedInSimulationRunner:
                             # Connection: A -> B
                             initial_connections[agent].append(ManualAction(
                                 action_type=ActionType.FOLLOW,
-                                action_args={"follow_id": peer_id}
+                                action_args={"followee_id": peer_id}
                             ))
                             # Connection: B -> A
                             initial_connections[peer_agent].append(ManualAction(
                                 action_type=ActionType.FOLLOW,
-                                action_args={"follow_id": agent_id}
+                                action_args={"followee_id": agent_id}
                             ))
                             connection_count += 1
                         except Exception:
@@ -753,7 +753,13 @@ class LinkedInSimulationRunner:
                     continue
             
             if initial_connections and self.env:
-                await self.env.step(initial_connections)
+                try:
+                    print(f"  Applying {connection_count} LinkedIn connection actions...")
+                    await self.env.step(initial_connections)
+                    print("  LinkedIn connection seeding completed successfully.")
+                except Exception as exc:
+                    print(f"  LinkedIn connection seeding failed: {exc}")
+                    raise
         
         print(f"Connections found in linkedin: {connection_count}")
         print(f"  LinkedIn clusters with connectable peers: {populated_cluster_count}")
