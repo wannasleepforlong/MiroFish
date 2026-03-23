@@ -229,6 +229,7 @@ def create_simulation():
             enable_twitter=data.get('enable_twitter', True),
             enable_reddit=data.get('enable_reddit', True),
             enable_linkedin=data.get('enable_linkedin', True),
+            discover_related_entities=data.get('discover_related_entities', False),
         )
 
         return jsonify({
@@ -489,6 +490,7 @@ def prepare_simulation():
         use_llm_for_profiles = data.get('use_llm_for_profiles', True)
         parallel_profile_count = data.get('parallel_profile_count', 5)
         language = data.get('language', Config.LANGUAGE)
+        discover_related_entities = data.get('discover_related_entities', state.discover_related_entities)
 
         # Fetch the entity count synchronously before starting the background
         # task so the frontend can immediately display the expected agent count.
@@ -604,6 +606,7 @@ def prepare_simulation():
                     document_text=document_text,
                     defined_entity_types=entity_types_list,
                     use_llm_for_profiles=use_llm_for_profiles,
+                    discover_related_entities=discover_related_entities,
                     progress_callback=progress_callback,
                     parallel_profile_count=parallel_profile_count,
                     language=language

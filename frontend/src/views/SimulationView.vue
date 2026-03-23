@@ -50,6 +50,7 @@
       <div class="panel-wrapper right" :style="rightPanelStyle">
         <Step2EnvSetup
           :simulationId="currentSimulationId"
+          :simulationData="simulationData"
           :projectData="projectData"
           :graphData="graphData"
           :systemLogs="systemLogs"
@@ -86,6 +87,7 @@ const viewMode = ref('split')
 
 // Data State
 const currentSimulationId = ref(route.params.simulationId)
+const simulationData = ref(null)
 const projectData = ref(null)
 const graphData = ref(null)
 const graphLoading = ref(false)
@@ -226,6 +228,7 @@ const loadSimulationData = async () => {
     const simRes = await getSimulation(currentSimulationId.value)
     if (simRes.success && simRes.data) {
       const simData = simRes.data
+      simulationData.value = simData
 
       if (simData.project_id) {
         const projRes = await getProject(simData.project_id)

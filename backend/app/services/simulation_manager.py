@@ -7,6 +7,8 @@ Uses preset scripts + LLM intelligent configuration parameter generation
 import os
 import json
 import shutil
+import uuid
+import re
 from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -14,7 +16,8 @@ from enum import Enum
 
 from ..config import Config
 from ..utils.logger import get_logger
-from .zep_entity_reader import ZepEntityReader, FilteredEntities
+from ..utils.llm_client import LLMClient
+from .zep_entity_reader import ZepEntityReader, FilteredEntities, EntityNode
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
 
@@ -51,6 +54,7 @@ class SimulationState:
     enable_twitter: bool = True
     enable_reddit: bool = True
     enable_linkedin: bool = True
+    discover_related_entities: bool = False
     
     # Status
     status: SimulationStatus = SimulationStatus.CREATED
@@ -59,6 +63,7 @@ class SimulationState:
     entities_count: int = 0
     profiles_count: int = 0
     entity_types: List[str] = field(default_factory=list)
+    discovered_entities_count: int = 0
     
     # Config generation info
     config_generated: bool = False
@@ -86,10 +91,12 @@ class SimulationState:
             "enable_twitter": self.enable_twitter,
             "enable_reddit": self.enable_reddit,
             "enable_linkedin": self.enable_linkedin,
+            "discover_related_entities": self.discover_related_entities,
             "status": self.status.value,
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
+            "discovered_entities_count": self.discovered_entities_count,
             "config_generated": self.config_generated,
             "config_reasoning": self.config_reasoning,
             "current_round": self.current_round,
@@ -111,6 +118,8 @@ class SimulationState:
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
+            "discover_related_entities": self.discover_related_entities,
+            "discovered_entities_count": self.discovered_entities_count,
             "config_generated": self.config_generated,
             "error": self.error,
         }
@@ -179,10 +188,12 @@ class SimulationManager:
             enable_twitter=data.get("enable_twitter", True),
             enable_reddit=data.get("enable_reddit", True),
             enable_linkedin=data.get("enable_linkedin", False),
+            discover_related_entities=data.get("discover_related_entities", False),
             status=SimulationStatus(data.get("status", "created")),
             entities_count=data.get("entities_count", 0),
             profiles_count=data.get("profiles_count", 0),
             entity_types=data.get("entity_types", []),
+            discovered_entities_count=data.get("discovered_entities_count", 0),
             config_generated=data.get("config_generated", False),
             config_reasoning=data.get("config_reasoning", ""),
             current_round=data.get("current_round", 0),
@@ -204,6 +215,7 @@ class SimulationManager:
         enable_twitter: bool = True,
         enable_reddit: bool = True,
         enable_linkedin: bool = True,
+        discover_related_entities: bool = False,
     ) -> SimulationState:
         """
         Create a new simulation
@@ -214,6 +226,7 @@ class SimulationManager:
             enable_twitter: Whether to enable Twitter simulation
             enable_reddit: Whether to enable Reddit simulation
             enable_linkedin: Whether to enable LinkedIn simulation
+            discover_related_entities: Whether to ask the LLM to add relevant missing entities
             
         Returns:
             SimulationState
@@ -228,6 +241,7 @@ class SimulationManager:
             enable_twitter=enable_twitter,
             enable_reddit=enable_reddit,
             enable_linkedin=enable_linkedin,
+            discover_related_entities=discover_related_entities,
             status=SimulationStatus.CREATED,
         )
         
@@ -235,6 +249,177 @@ class SimulationManager:
         logger.info(f"Created simulation: {simulation_id}, project={project_id}, graph={graph_id}")
         
         return state
+
+    def _discover_related_entities(
+        self,
+        simulation_requirement: str,
+        document_text: str,
+        entities: List[EntityNode],
+        language: str = "en",
+        max_entities: int = 5,
+    ) -> List[EntityNode]:
+        """Use the LLM to infer a small set of relevant entities missing from the uploaded source."""
+        if max_entities <= 0:
+            return []
+
+        existing_names = {entity.name.strip().lower() for entity in entities if entity.name}
+        existing_name_list = [entity.name.strip() for entity in entities if entity.name]
+        existing_types = sorted({
+            entity.get_entity_type() or "Entity"
+            for entity in entities
+        })
+        entity_preview = [
+            {
+                "name": entity.name,
+                "entity_type": entity.get_entity_type() or "Entity",
+                "summary": (entity.summary or "")[:220],
+            }
+            for entity in entities[:30]
+        ]
+
+        if language == "zh":
+            system_prompt = (
+                "你是社会舆情模拟设计专家。请补充最多5个虽然未在上传材料中明确出现、"
+                "但对该话题传播非常相关且适合出现在社交媒体讨论中的真实或高度可信主体。"
+                "下面给出的图谱实体名单是硬性排除列表，绝对不能重复、改写、换壳或近似复述。只返回 JSON。"
+            )
+            user_prompt = f"""请基于以下材料，补充最多 {max_entities} 个“相关但未被明确提及”的实体。
+
+要求：
+1. 不要重复已有实体，也不要输出泛泛而谈的抽象概念。
+2. 下方“图谱中已找到的实体名称”是严格排除名单。你输出的实体必须与这些名称明显不同，不能是同一实体的改写、别名、上级机构、下级机构、同一人的头衔变体或轻微措辞变化。
+2. 实体必须是适合在社交媒体上发声或被讨论的主体，如人物、组织、机构、媒体、社群、公司、政府部门等。
+3. 若已有实体类型可复用，优先复用；否则给出最贴切的新类型。
+4. 如果没有足够可靠的补充对象，返回空数组。
+5. 每个实体 summary 控制在 1-2 句，说明其身份与相关性。
+
+模拟需求：
+{simulation_requirement[:3000]}
+
+文档内容摘要：
+{document_text[:6000]}
+
+已有实体类型：
+{json.dumps(existing_types, ensure_ascii=False)}
+
+图谱中已找到的实体名称（严格排除，不可重复）：
+{json.dumps(existing_name_list[:80], ensure_ascii=False, indent=2)}
+
+已有实体示例：
+{json.dumps(entity_preview, ensure_ascii=False, indent=2)}
+
+返回格式：
+{{
+  "discovered_entities": [
+    {{
+      "name": "实体名称",
+      "entity_type": "实体类型",
+      "summary": "实体简介",
+      "why_relevant": "为何与该事件高度相关"
+    }}
+  ],
+  "reasoning": "简短说明"
+}}"""
+        else:
+            system_prompt = (
+                "You are a social simulation design expert. Infer up to 3 relevant entities "
+                "that are not explicitly named in the uploaded material but are strongly relevant "
+                "to the topic and plausible participants in public social discussion. "
+                "The provided graph entity names are a hard exclusion list: never repeat them, rename them, "
+                "or return near-duplicates of them. Return JSON only."
+            )
+            user_prompt = f"""Based on the materials below, infer up to {max_entities} relevant entities that are missing from the uploaded source.
+
+Rules:
+1. Do not repeat existing entities and do not return abstract concepts.
+2. Treat the “entity names already found in the graph” list below as a strict exclusion list. Your answers must be clearly different from those entities, not aliases, renamed variants, title variants, parent/subsidiary restatements, or lightly rephrased duplicates of the same real-world actor.
+2. Each entity must be a plausible social actor that could post, react, or be discussed publicly: person, organization, institution, media outlet, company, community, agency, etc.
+3. Reuse an existing entity type when it fits; otherwise provide the closest sensible type.
+4. If there are no reliable additions, return an empty array.
+5. Keep each summary to 1-2 sentences explaining identity and relevance.
+
+Simulation requirement:
+{simulation_requirement[:3000]}
+
+Document excerpt:
+{document_text[:6000]}
+
+Existing entity types:
+{json.dumps(existing_types, ensure_ascii=False)}
+
+Entity names already found in the graph (strict exclusion list):
+{json.dumps(existing_name_list, ensure_ascii=False, indent=2)}
+
+
+Return format:
+{{
+  "discovered_entities": [
+    {{
+      "name": "Entity name",
+      "entity_type": "Entity type",
+      "summary": "Short identity and relevance summary",
+      "why_relevant": "Why this entity matters to the simulation"
+    }}
+  ],
+  "reasoning": "Short explanation"
+}}"""
+
+        try:
+            llm = LLMClient()
+            response = llm.chat_json(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=1800,
+            )
+        except Exception as exc:
+            logger.warning(f"LLM related entity discovery failed: {exc}")
+            return []
+
+        discovered_entities = response.get("discovered_entities", [])
+        normalized: List[EntityNode] = []
+        seen_names = set(existing_names)
+
+        def normalize_name(value: str) -> str:
+            return re.sub(r'[^a-z0-9]+', '', value.lower())
+
+        for idx, item in enumerate(discovered_entities[:max_entities]):
+            name = str(item.get("name", "")).strip()
+            entity_type = str(item.get("entity_type", "")).strip() or "Entity"
+            summary = str(item.get("summary", "")).strip()
+            why_relevant = str(item.get("why_relevant", "")).strip()
+
+            if not name:
+                continue
+            lowered = name.lower()
+            normalized_name = normalize_name(name)
+            if lowered in seen_names:
+                continue
+            if any(
+                normalized_name == normalize_name(existing_name)
+                or normalized_name in normalize_name(existing_name)
+                or normalize_name(existing_name) in normalized_name
+                for existing_name in existing_name_list
+            ):
+                continue
+
+            normalized.append(EntityNode(
+                uuid=f"llm_discovered_{uuid.uuid4().hex[:12]}_{idx}",
+                name=name,
+                labels=["Entity", entity_type],
+                summary=summary or why_relevant or f"{name} is relevant to this simulation topic.",
+                attributes={
+                    "discovered_by_llm": True,
+                    "why_relevant": why_relevant,
+                    "source": "llm_related_entity_discovery",
+                },
+            ))
+            seen_names.add(lowered)
+
+        logger.info(f"LLM discovered {len(normalized)} additional relevant entities")
+        return normalized
     
     def prepare_simulation(
         self,
@@ -243,6 +428,7 @@ class SimulationManager:
         document_text: str,
         defined_entity_types: Optional[List[str]] = None,
         use_llm_for_profiles: bool = True,
+        discover_related_entities: Optional[bool] = None,
         progress_callback: Optional[callable] = None,
         parallel_profile_count: int = 3,
         language: str = "zh"
@@ -293,23 +479,59 @@ class SimulationManager:
                 defined_entity_types=defined_entity_types,
                 enrich_with_edges=True
             )
-            
-            state.entities_count = filtered.filtered_count
+
+            if discover_related_entities is None:
+                discover_related_entities = state.discover_related_entities
+            else:
+                state.discover_related_entities = discover_related_entities
+
+            discovered_entities: List[EntityNode] = []
+            if discover_related_entities:
+                if progress_callback:
+                    progress_callback("reading", 65, "Discovering additional relevant entities with LLM...")
+                discovered_entities = self._discover_related_entities(
+                    simulation_requirement=simulation_requirement,
+                    document_text=document_text,
+                    entities=filtered.entities,
+                    language=language,
+                    max_entities=5,
+                )
+                if discovered_entities:
+                    print("\n=== DISCOVERED ENTITIES ===")
+                    for e in discovered_entities:
+                        print(f"Name: {e.name},Type: {e.get_entity_type()}")
+                    
+                    filtered.entities.extend(discovered_entities)
+                    filtered.entity_types.update(
+                        entity.get_entity_type() or "Entity"
+                        for entity in discovered_entities
+                    )
+                state.discovered_entities_count = len(discovered_entities)
+            else:
+                state.discovered_entities_count = 0
+
+            state.entities_count = len(filtered.entities)
             state.entity_types = list(filtered.entity_types)
             
             if progress_callback:
                 progress_callback(
                     "reading", 100, 
-                    f"Complete, {filtered.filtered_count} entities found",
-                    current=filtered.filtered_count,
-                    total=filtered.filtered_count
+                    f"Complete, {state.entities_count} entities found",
+                    current=state.entities_count,
+                    total=state.entities_count
                 )
             
-            if filtered.filtered_count == 0:
+            if state.entities_count == 0:
                 state.status = SimulationStatus.FAILED
                 state.error = "No matching entities found, please check that the graph was built correctly"
                 self._save_simulation_state(state)
                 return state
+
+            if discovered_entities:
+                discovered_path = os.path.join(sim_dir, "discovered_entities.json")
+                with open(discovered_path, 'w', encoding='utf-8') as f:
+                    json.dump([entity.to_dict() for entity in discovered_entities], f, ensure_ascii=False, indent=2)
+                logger.info(f"Saved {len(discovered_entities)} discovered entities to {discovered_path}")
             
             # ========== Phase 2: Generate Agent Profiles ==========
             total_entities = len(filtered.entities)

@@ -646,6 +646,7 @@ const { t } = useI18n()
 
 const props = defineProps({
   simulationId: String,  // Passed from parent component
+  simulationData: Object,
   projectData: Object,
   graphData: Object,
   systemLogs: Array
@@ -780,14 +781,22 @@ const startPrepareSimulation = async () => {
   phase.value = 1
   addLog(t('step2.log.simCreated', { id: props.simulationId }))
   addLog(t('step2.log.preparingEnv'))
+  if (props.simulationData?.discover_related_entities) {
+    addLog('LLM related-entity discovery is enabled (max 5 extra entities).')
+  }
   emit('update-status', 'processing')
   
   try {
-    const res = await prepareSimulation({
+    const payload = {
       simulation_id: props.simulationId,
       use_llm_for_profiles: true,
       parallel_profile_count: 5
-    })
+    }
+    if (props.simulationData?.discover_related_entities !== undefined) {
+      payload.discover_related_entities = props.simulationData.discover_related_entities
+    }
+
+    const res = await prepareSimulation(payload)
     
     if (res.success && res.data) {
       if (res.data.already_prepared) {

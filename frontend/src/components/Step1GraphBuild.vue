@@ -169,6 +169,17 @@
               <span class="switch-label">{{ enableLinkedIn ? 'On' : 'Off' }}</span>
             </label>
           </div>
+          <div class="platform-toggle-row">
+            <div class="toggle-copy">
+              <span class="toggle-title">Discover Related Entities</span>
+              <span class="toggle-desc">Let the LLM add up to 5 extra relevant entities that were not explicitly mentioned in the uploaded file.</span>
+            </div>
+            <label class="switch-control">
+              <input v-model="discoverRelatedEntities" type="checkbox">
+              <span class="switch-track"></span>
+              <span class="switch-label">{{ discoverRelatedEntities ? 'On' : 'Off' }}</span>
+            </label>
+          </div>
           <button 
             class="action-btn" 
             :disabled="currentPhase < 2 || creatingSimulation"
@@ -221,6 +232,7 @@ const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
 const enableLinkedIn = ref(true)
+const discoverRelatedEntities = ref(false)
 
 // Enter environment setup - create simulation and navigate
 const handleEnterEnvSetup = async () => {
@@ -237,7 +249,8 @@ const handleEnterEnvSetup = async () => {
       graph_id: props.projectData.graph_id,
       enable_twitter: true,
       enable_reddit: true,
-      enable_linkedin: enableLinkedIn.value
+      enable_linkedin: enableLinkedIn.value,
+      discover_related_entities: discoverRelatedEntities.value
     })
     
     if (res.success && res.data?.simulation_id) {
