@@ -230,6 +230,7 @@ def create_simulation():
             enable_reddit=data.get('enable_reddit', True),
             enable_linkedin=data.get('enable_linkedin', True),
             discover_related_entities=data.get('discover_related_entities', False),
+            custom_entities=data.get('custom_entities', []),
         )
 
         return jsonify({
@@ -491,6 +492,7 @@ def prepare_simulation():
         parallel_profile_count = data.get('parallel_profile_count', 5)
         language = data.get('language', Config.LANGUAGE)
         discover_related_entities = data.get('discover_related_entities', state.discover_related_entities)
+        custom_entities = data.get('custom_entities', state.custom_entities)
 
         # Fetch the entity count synchronously before starting the background
         # task so the frontend can immediately display the expected agent count.
@@ -607,6 +609,7 @@ def prepare_simulation():
                     defined_entity_types=entity_types_list,
                     use_llm_for_profiles=use_llm_for_profiles,
                     discover_related_entities=discover_related_entities,
+                    custom_entities=custom_entities,
                     progress_callback=progress_callback,
                     parallel_profile_count=parallel_profile_count,
                     language=language

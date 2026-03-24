@@ -180,6 +180,35 @@
               <span class="switch-label">{{ discoverRelatedEntities ? 'On' : 'Off' }}</span>
             </label>
           </div>
+          <div class="custom-entities-panel">
+            <div class="custom-entities-header">
+              <div class="toggle-copy">
+                <span class="toggle-title">Custom Entities</span>
+                <span class="toggle-desc">Add your own entities with a name and short description. The backend will use an LLM call to expand them into the rest of the simulation fields.</span>
+              </div>
+              <button class="mini-action-btn" type="button" @click="addCustomEntity">+ Add Entity</button>
+            </div>
+            <div v-if="customEntities.length === 0" class="custom-entities-empty">
+              No custom entities yet.
+            </div>
+            <div v-for="(entity, idx) in customEntities" :key="idx" class="custom-entity-card">
+              <div class="custom-entity-row">
+                <input
+                  v-model="entity.name"
+                  class="entity-input"
+                  type="text"
+                  placeholder="Name, e.g. Influencer"
+                >
+                <button class="remove-entity-btn" type="button" @click="removeCustomEntity(idx)">Remove</button>
+              </div>
+              <textarea
+                v-model="entity.description"
+                class="entity-textarea"
+                rows="3"
+                placeholder="Description, e.g. Always negative about AI."
+              ></textarea>
+            </div>
+          </div>
           <button 
             class="action-btn" 
             :disabled="currentPhase < 2 || creatingSimulation"
@@ -233,6 +262,15 @@ const logContent = ref(null)
 const creatingSimulation = ref(false)
 const enableLinkedIn = ref(true)
 const discoverRelatedEntities = ref(false)
+const customEntities = ref([])
+
+const addCustomEntity = () => {
+  customEntities.value.push({ name: '', description: '' })
+}
+
+const removeCustomEntity = (index) => {
+  customEntities.value.splice(index, 1)
+}
 
 // Enter environment setup - create simulation and navigate
 const handleEnterEnvSetup = async () => {
@@ -244,13 +282,21 @@ const handleEnterEnvSetup = async () => {
   creatingSimulation.value = true
   
   try {
+    const cleanedCustomEntities = customEntities.value
+      .map(entity => ({
+        name: (entity.name || '').trim(),
+        description: (entity.description || '').trim()
+      }))
+      .filter(entity => entity.name && entity.description)
+
     const res = await createSimulation({
       project_id: props.projectData.project_id,
       graph_id: props.projectData.graph_id,
       enable_twitter: true,
       enable_reddit: true,
       enable_linkedin: enableLinkedIn.value,
-      discover_related_entities: discoverRelatedEntities.value
+      discover_related_entities: discoverRelatedEntities.value,
+      custom_entities: cleanedCustomEntities
     })
     
     if (res.success && res.data?.simulation_id) {
@@ -728,6 +774,97 @@ watch(() => props.systemLogs.length, () => {
   font-size: 11px;
   font-weight: 600;
   color: #555;
+}
+
+.custom-entities-panel {
+  margin-bottom: 14px;
+  padding: 14px;
+  border: 1px solid #EAEAEA;
+  border-radius: 6px;
+  background: #FAFAFA;
+}
+
+.custom-entities-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.custom-entities-empty {
+  font-size: 12px;
+  color: #777;
+  padding: 10px 0 2px;
+}
+
+.custom-entity-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  margin-top: 10px;
+  border: 1px solid #E2E2E2;
+  border-radius: 6px;
+  background: #FFF;
+}
+
+.custom-entity-row {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.entity-input,
+.entity-textarea {
+  width: 100%;
+  border: 1px solid #D9D9D9;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #111;
+  background: #FFF;
+}
+
+.entity-textarea {
+  resize: vertical;
+  min-height: 72px;
+  font-family: inherit;
+}
+
+.entity-input:focus,
+.entity-textarea:focus {
+  outline: none;
+  border-color: #111;
+}
+
+.mini-action-btn,
+.remove-entity-btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.mini-action-btn {
+  background: #111;
+  color: #FFF;
+  white-space: nowrap;
+}
+
+.remove-entity-btn {
+  background: #F1F1F1;
+  color: #333;
+  white-space: nowrap;
+}
+
+.mini-action-btn:hover,
+.remove-entity-btn:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
 }
 
 .progress-section {

@@ -784,6 +784,9 @@ const startPrepareSimulation = async () => {
   if (props.simulationData?.discover_related_entities) {
     addLog('LLM related-entity discovery is enabled (max 5 extra entities).')
   }
+  if (props.simulationData?.custom_entities?.length) {
+    addLog(`Custom entities queued: ${props.simulationData.custom_entities.length}`)
+  }
   emit('update-status', 'processing')
   
   try {

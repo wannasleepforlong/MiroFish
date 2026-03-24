@@ -55,6 +55,7 @@ class SimulationState:
     enable_reddit: bool = True
     enable_linkedin: bool = True
     discover_related_entities: bool = False
+    custom_entities: List[Dict[str, str]] = field(default_factory=list)
     
     # Status
     status: SimulationStatus = SimulationStatus.CREATED
@@ -92,6 +93,7 @@ class SimulationState:
             "enable_reddit": self.enable_reddit,
             "enable_linkedin": self.enable_linkedin,
             "discover_related_entities": self.discover_related_entities,
+            "custom_entities": self.custom_entities,
             "status": self.status.value,
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
@@ -119,6 +121,7 @@ class SimulationState:
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
             "discover_related_entities": self.discover_related_entities,
+            "custom_entities": self.custom_entities,
             "discovered_entities_count": self.discovered_entities_count,
             "config_generated": self.config_generated,
             "error": self.error,
@@ -189,6 +192,7 @@ class SimulationManager:
             enable_reddit=data.get("enable_reddit", True),
             enable_linkedin=data.get("enable_linkedin", False),
             discover_related_entities=data.get("discover_related_entities", False),
+            custom_entities=data.get("custom_entities", []),
             status=SimulationStatus(data.get("status", "created")),
             entities_count=data.get("entities_count", 0),
             profiles_count=data.get("profiles_count", 0),
@@ -216,6 +220,7 @@ class SimulationManager:
         enable_reddit: bool = True,
         enable_linkedin: bool = True,
         discover_related_entities: bool = False,
+        custom_entities: Optional[List[Dict[str, str]]] = None,
     ) -> SimulationState:
         """
         Create a new simulation
@@ -227,6 +232,7 @@ class SimulationManager:
             enable_reddit: Whether to enable Reddit simulation
             enable_linkedin: Whether to enable LinkedIn simulation
             discover_related_entities: Whether to ask the LLM to add relevant missing entities
+            custom_entities: User-supplied entity seeds with name/description
             
         Returns:
             SimulationState
@@ -242,6 +248,7 @@ class SimulationManager:
             enable_reddit=enable_reddit,
             enable_linkedin=enable_linkedin,
             discover_related_entities=discover_related_entities,
+            custom_entities=custom_entities or [],
             status=SimulationStatus.CREATED,
         )
         
@@ -425,6 +432,135 @@ Return format:
 
         logger.info(f"LLM discovered {len(normalized)} additional relevant entities")
         return normalized
+
+    def _expand_custom_entities(
+        self,
+        custom_entities: List[Dict[str, str]],
+        language: str = "en",
+    ) -> List[EntityNode]:
+        """Use the LLM to turn user-entered name/description seeds into structured entities."""
+        cleaned = []
+        for item in custom_entities:
+            name = str(item.get("name", "")).strip()
+            description = str(item.get("description", "")).strip()
+            if name and description:
+                cleaned.append({"name": name, "description": description})
+
+        if not cleaned:
+            return []
+
+        if language == "zh":
+            system_prompt = "你是社会模拟设计专家。请将用户手动添加的实体线索扩展为结构化社交实体。只返回 JSON。"
+            user_prompt = f"""用户手动添加了一些实体线索。请基于每个实体的 name 和 description，补全适合模拟配置使用的结构化字段。
+
+要求：
+1. 必须保留用户给定的 name，不要改名。
+2. 推断一个最合适的 entity_type。
+3. 生成 1-2 句的 summary，便于后续人格与配置生成。
+4. 提供少量 attributes，帮助刻画该实体的立场或角色。
+
+输入：
+{json.dumps(cleaned, ensure_ascii=False, indent=2)}
+
+返回格式：
+{{
+  "entities": [
+    {{
+      "name": "原始名称",
+      "entity_type": "实体类型",
+      "summary": "简短摘要",
+      "attributes": {{
+        "seed_description": "原始描述",
+        "stance": "可能立场",
+        "role": "角色"
+      }}
+    }}
+  ]
+}}"""
+        else:
+            system_prompt = "You are a social simulation design expert. Expand user-added entity seeds into structured social entities. Return JSON only."
+            user_prompt = f"""The user manually added some entity seeds. For each item, use its name and description to fill in the structured fields needed for simulation setup.
+
+Rules:
+1. Preserve the exact user-provided name.
+2. Infer the best-fit entity_type.
+3. Write a 1-2 sentence summary suitable for downstream persona/config generation.
+4. Provide a small attributes object that helps characterize stance or role.
+
+Input:
+{json.dumps(cleaned, ensure_ascii=False, indent=2)}
+
+Return format:
+{{
+  "entities": [
+    {{
+      "name": "Original name",
+      "entity_type": "Entity type",
+      "summary": "Short identity and behavior summary",
+      "attributes": {{
+        "seed_description": "Original description",
+        "stance": "Likely stance",
+        "role": "Likely role"
+      }}
+    }}
+  ]
+}}"""
+
+        try:
+            llm = LLMClient()
+            response = llm.chat_json(
+                [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=1800,
+            )
+            results = response.get("entities", [])
+        except Exception as exc:
+            logger.warning(f"LLM custom entity expansion failed: {exc}")
+            results = []
+
+        expanded: List[EntityNode] = []
+        seen = set()
+
+        def fallback_type(name: str) -> str:
+            org_markers = ("foundation", "institute", "board", "alliance", "agency", "company", "group", "collective")
+            lowered = name.lower()
+            return "Organization" if any(marker in lowered for marker in org_markers) else "Person"
+
+        source_by_name = {item["name"]: item["description"] for item in cleaned}
+
+        for idx, item in enumerate(results):
+            name = str(item.get("name", "")).strip()
+            if not name or name in seen or name not in source_by_name:
+                continue
+            entity_type = str(item.get("entity_type", "")).strip() or fallback_type(name)
+            summary = str(item.get("summary", "")).strip() or source_by_name[name]
+            attributes = item.get("attributes") if isinstance(item.get("attributes"), dict) else {}
+            attributes["seed_description"] = source_by_name[name]
+            expanded.append(EntityNode(
+                uuid=f"custom_entity_{uuid.uuid4().hex[:12]}_{idx}",
+                name=name,
+                labels=["Entity", entity_type],
+                summary=summary,
+                attributes=attributes,
+            ))
+            seen.add(name)
+
+        for idx, item in enumerate(cleaned):
+            if item["name"] in seen:
+                continue
+            expanded.append(EntityNode(
+                uuid=f"custom_entity_fallback_{uuid.uuid4().hex[:12]}_{idx}",
+                name=item["name"],
+                labels=["Entity", fallback_type(item["name"])],
+                summary=item["description"],
+                attributes={"seed_description": item["description"], "source": "user_custom_entity"},
+            ))
+
+        logger.info(f"Expanded {len(expanded)} custom user entities")
+        return expanded
     
     def prepare_simulation(
         self,
@@ -434,6 +570,7 @@ Return format:
         defined_entity_types: Optional[List[str]] = None,
         use_llm_for_profiles: bool = True,
         discover_related_entities: Optional[bool] = None,
+        custom_entities: Optional[List[Dict[str, str]]] = None,
         progress_callback: Optional[callable] = None,
         parallel_profile_count: int = 3,
         language: str = "zh"
@@ -490,6 +627,11 @@ Return format:
             else:
                 state.discover_related_entities = discover_related_entities
 
+            if custom_entities is None:
+                custom_entities = state.custom_entities
+            else:
+                state.custom_entities = custom_entities
+
             discovered_entities: List[EntityNode] = []
             if discover_related_entities:
                 if progress_callback:
@@ -517,7 +659,27 @@ Return format:
 
             state.entities_count = len(filtered.entities)
             state.entity_types = list(filtered.entity_types)
-            
+
+            custom_entity_nodes: List[EntityNode] = []
+            if custom_entities:
+                if progress_callback:
+                    progress_callback("reading", 82, "Expanding custom entities with LLM...")
+                custom_entity_nodes = self._expand_custom_entities(
+                    custom_entities=custom_entities,
+                    language=language,
+                )
+                if custom_entity_nodes:
+                    filtered.entities.extend(custom_entity_nodes)
+                    filtered.entity_types.update(
+                        entity.get_entity_type() or "Entity"
+                        for entity in custom_entity_nodes
+                    )
+                    state.entities_count = len(filtered.entities)
+                    state.entity_types = list(filtered.entity_types)
+                    print("\n=== CUSTOM ENTITIES ===")
+                    for entity in custom_entity_nodes:
+                        print(f"Name: {entity.name}, Type: {entity.get_entity_type()}")
+
             if progress_callback:
                 progress_callback(
                     "reading", 100, 
@@ -537,6 +699,11 @@ Return format:
                 with open(discovered_path, 'w', encoding='utf-8') as f:
                     json.dump([entity.to_dict() for entity in discovered_entities], f, ensure_ascii=False, indent=2)
                 logger.info(f"Saved {len(discovered_entities)} discovered entities to {discovered_path}")
+            if custom_entity_nodes:
+                custom_path = os.path.join(sim_dir, "custom_entities_expanded.json")
+                with open(custom_path, 'w', encoding='utf-8') as f:
+                    json.dump([entity.to_dict() for entity in custom_entity_nodes], f, ensure_ascii=False, indent=2)
+                logger.info(f"Saved {len(custom_entity_nodes)} expanded custom entities to {custom_path}")
             
             # ========== Phase 2: Generate Agent Profiles ==========
             total_entities = len(filtered.entities)
