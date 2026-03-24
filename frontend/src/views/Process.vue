@@ -566,6 +566,28 @@ const initProject = async () => {
   }
 }
 
+// Format project initialization error messages
+const formatProjectInitError = (err) => {
+  if (!err) return t('process.unknownError')
+
+  // Timeout error
+  if (err.code === 'ECONNABORTED' || String(err.message || '').includes('timeout')) {
+    return 'Request timeout (5 minutes). Please try reducing document size or check backend model response speed.'
+  }
+
+  // Network error
+  if (err.message === 'Network Error') {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5001'
+    return `Cannot connect to backend service (${apiBase}). Please check if backend is running, CORS/reverse proxy settings, and network connectivity.`
+  }
+
+  // Backend error message
+  const backendMessage = err.response?.data?.error || err.response?.data?.message
+  if (backendMessage) return backendMessage
+
+  return err.message || t('process.unknownError')
+}
+
 // Handle new project - call ontology/generate API
 const handleNewProject = async () => {
   const pending = getPendingUpload()
@@ -617,7 +639,7 @@ const handleNewProject = async () => {
     }
   } catch (err) {
     console.error('Handle new project error:', err)
-    error.value = t('process.projectInitFailed') + (err.message || t('process.unknownError'))
+    error.value = t('process.projectInitFailed') + ': ' + formatProjectInitError(err)
   } finally {
     loading.value = false
   }
