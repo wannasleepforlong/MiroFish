@@ -39,8 +39,22 @@ def create_app(config_class=Config):
         logger.info("Starting MiroFish backend...")
         logger.info("=" * 50)
     
-    # Enable CORS.
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    # Enable CORS - use environment variable for allowed origins
+    # Development defaults to localhost, production should explicitly set
+    allowed_origins = os.environ.get('CORS_ALLOWED_ORIGINS',
+        'http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173')
+    origins_list = [origin.strip() for origin in allowed_origins.split(',')]
+
+    # In DEBUG mode, if CORS_ALLOWED_ORIGINS not set, allow all localhost
+    if debug_mode and os.environ.get('CORS_ALLOWED_ORIGINS') is None:
+        CORS(app, resources={r"/api/*": {"origins": ["http://localhost:*", "http://127.0.0.1:*"]}})
+        if should_log_startup:
+            logger.warning("DEBUG mode: CORS allows all local dev servers (not recommended for production)")
+    else:
+        # Production mode: only allow explicitly configured origins
+        CORS(app, resources={r"/api/*": {"origins": origins_list}})
+        if should_log_startup:
+            logger.info(f"CORS configured with allowed origins: {origins_list}")
     
     # Register simulation-process cleanup so all child processes stop on shutdown.
     from .services.simulation_runner import SimulationRunner

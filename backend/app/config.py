@@ -3,6 +3,8 @@ Configuration management.
 Loads settings from the project-root `.env` file.
 """
 import os
+import secrets
+import warnings
 from dotenv import load_dotenv
 
 # Load the project-root `.env` file.
@@ -62,8 +64,19 @@ class Config:
     # ------------------------------------------------------------------ #
     #  Flask settings                                                      #
     # ------------------------------------------------------------------ #
-    SECRET_KEY = os.environ.get('SECRET_KEY', 'mirofish-secret-key')
-    DEBUG = os.environ.get('FLASK_DEBUG', 'True').lower() == 'true'
+    # SECURITY: SECRET_KEY should be set via environment variable
+    _secret_key = os.environ.get('SECRET_KEY')
+    if not _secret_key:
+        warnings.warn(
+            "SECRET_KEY not set in environment variables. Using a temporary key for this session. "
+            "Please set SECRET_KEY in your .env file for production use.",
+            UserWarning
+        )
+        _secret_key = secrets.token_hex(32)
+    SECRET_KEY = _secret_key
+
+    # SECURITY: DEBUG should default to False for production safety
+    DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
 
     # Keep JSON output readable instead of forcing ASCII escapes.
     JSON_AS_ASCII = False
