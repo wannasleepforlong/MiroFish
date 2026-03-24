@@ -13,6 +13,9 @@ flask-cors>=6.0.0
 # OpenAI SDK (used for OpenAI-compatible LLM APIs)
 openai>=1.0.0
 
+# Security fix: CVE-2025-64712
+unstructured==0.13.7
+
 # ============= Zep Cloud =============
 zep-cloud==3.13.0
 
@@ -34,5 +37,3 @@ python-dotenv>=1.0.0
 # Data validation
 pydantic>=2.0.0
 
-# Security fix: CVE-2025-64712
-unstructured==0.18.18
