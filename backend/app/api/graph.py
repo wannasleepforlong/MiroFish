@@ -302,7 +302,8 @@ def build_graph():
         # Parse the request.
         data = request.get_json() or {}
         project_id = data.get('project_id')
-        logger.debug(f"Request params: project_id={project_id}")
+        enable_deduplication = data.get('deduplicate', True)  # Default to True
+        logger.debug(f"Request params: project_id={project_id}, deduplicate={enable_deduplication}")
 
         if not project_id:
             return jsonify({
@@ -504,6 +505,24 @@ def build_graph():
                 edge_count = graph_data.get("edge_count", 0)
                 build_logger.info(f"[{task_id}] Graph build complete: graph_id={graph_id}, nodes={node_count}, edges={edge_count}")
 
+                # Run entity deduplication if enabled
+                dedup_result = None
+                if enable_deduplication:
+                    try:
+                        build_logger.info(f"[{task_id}] Starting entity deduplication...")
+                        from ..services.entity_deduplicator import EntityDeduplicator
+                        deduplicator = EntityDeduplicator()
+                        dedup_report = deduplicator.deduplicate(graph_id=graph_id)
+                        dedup_result = dedup_report.to_dict()
+                        build_logger.info(
+                            f"[{task_id}] Entity deduplication complete: "
+                            f"found {dedup_report.groups_found} groups, "
+                            f"removed {dedup_report.nodes_removed} nodes, "
+                            f"migrated {dedup_report.edges_migrated} edges"
+                        )
+                    except Exception as dedup_err:
+                        build_logger.warning(f"[{task_id}] Entity deduplication failed (not affecting graph build): {dedup_err}")
+
                 # Mark the task complete.
                 task_manager.update_task(
                     task_id,
@@ -515,7 +534,8 @@ def build_graph():
                         "graph_id": graph_id,
                         "node_count": node_count,
                         "edge_count": edge_count,
-                        "chunk_count": total_chunks
+                        "chunk_count": total_chunks,
+                        "dedup_report": dedup_result
                     }
                 )
 
@@ -646,4 +666,55 @@ def delete_graph(graph_id: str):
             "success": False,
             "error": str(e),
             
+        }), 500
+
+
+@graph_bp.route('/deduplicate', methods=['POST'])
+def deduplicate_graph():
+    """
+    Run entity deduplication on a graph.
+    
+    Request body (JSON):
+    {
+        "graph_id": "required - Zep graph ID",
+        "dry_run": "optional - if true, only detect duplicates without merging"
+    }
+    
+    Returns:
+    {
+        "success": true,
+        "data": { ...DeduplicationReport... }
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        graph_id = data.get('graph_id')
+        dry_run = data.get('dry_run', False)
+        
+        if not graph_id:
+            return jsonify({
+                "success": False,
+                "error": "graph_id is required"
+            }), 400
+        
+        if not Config.ZEP_API_KEY:
+            return jsonify({
+                "success": False,
+                "error": "ZEP_API_KEY is not configured"
+            }), 500
+        
+        from ..services.entity_deduplicator import EntityDeduplicator
+        deduplicator = EntityDeduplicator()
+        report = deduplicator.deduplicate(graph_id=graph_id, dry_run=dry_run)
+        
+        return jsonify({
+            "success": True,
+            "data": report.to_dict()
+        })
+        
+    except Exception as e:
+        logger.error(f"Entity deduplication failed: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
         }), 500

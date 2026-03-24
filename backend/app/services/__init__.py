@@ -36,6 +36,7 @@ from .simulation_ipc import (
     CommandType,
     CommandStatus
 )
+from .entity_deduplicator import EntityDeduplicator, DeduplicationReport, MergeAction
 
 __all__ = [
     'OntologyGenerator', 
@@ -69,5 +70,8 @@ __all__ = [
     'IPCResponse',
     'CommandType',
     'CommandStatus',
+    'EntityDeduplicator',
+    'DeduplicationReport',
+    'MergeAction',
 ]
 

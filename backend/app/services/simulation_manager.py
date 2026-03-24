@@ -455,9 +455,10 @@ Return format:
 
 要求：
 1. 必须保留用户给定的 name，不要改名。
-2. 推断一个最合适的 entity_type。
-3. 生成 1-2 句的 summary，便于后续人格与配置生成。
-4. 提供少量 attributes，帮助刻画该实体的立场或角色。
+2. 推断一个最合适的 entity_type（人物用Person，记者用Person:Journalist，影响者用Person:Influencer，组织用Organization:公司/政府/媒体等）。
+3. 生成 2-3 句的详细 summary，包含身份背景和行为特征。
+4. 提供详细的 attributes，帮助后续人格生成。
+5. **多样化原则**：当描述attributes时，为每个实体赋予独特、多样化的特征。避免所有实体都使用相似的风格或立场。即使是小角色也可以有独特的背景、观点或行为模式。
 
 输入：
 {json.dumps(cleaned, ensure_ascii=False, indent=2)}
@@ -468,11 +469,15 @@ Return format:
     {{
       "name": "原始名称",
       "entity_type": "实体类型",
-      "summary": "简短摘要",
+      "summary": "详细摘要（2-3句，包含身份、背景、行为特征）",
       "attributes": {{
         "seed_description": "原始描述",
+        "expertise_areas": ["专业领域1", "专业领域2"],
+        "communication_style": "沟通风格（如：分析型、激进型、幽默型）",
+        "influence_level": "High/Medium/Low",
+        "target_audience": ["目标受众1", "目标受众2"],
         "stance": "可能立场",
-        "role": "角色"
+        "role": "角色（如：影响者、专家、记者、普通用户）"
       }}
     }}
   ]
@@ -483,9 +488,10 @@ Return format:
 
 Rules:
 1. Preserve the exact user-provided name.
-2. Infer the best-fit entity_type.
-3. Write a 1-2 sentence summary suitable for downstream persona/config generation.
-4. Provide a small attributes object that helps characterize stance or role.
+2. Infer the best-fit entity_type (use format: Person, Person:Journalist, Person:Influencer, Organization:Company, Organization:Government, etc.)
+3. Write a 2-3 sentence detailed summary with identity, background, and behavior traits.
+4. Provide detailed attributes to help with persona generation.
+5. **Diversity Rule**: When inventing attributes, make each entity unique and diverse. Avoid giving all entities similar styles or stances. Even minor characters should have distinct backgrounds, viewpoints, or behavioral patterns.
 
 Input:
 {json.dumps(cleaned, ensure_ascii=False, indent=2)}
@@ -495,12 +501,16 @@ Return format:
   "entities": [
     {{
       "name": "Original name",
-      "entity_type": "Entity type",
-      "summary": "Short identity and behavior summary",
+      "entity_type": "Entity type (e.g., Person:Influencer, Organization:Company)",
+      "summary": "Detailed 2-3 sentence summary with identity, background, and behavior traits",
       "attributes": {{
         "seed_description": "Original description",
+        "expertise_areas": ["Area of expertise 1", "Area of expertise 2"],
+        "communication_style": "Communication style (e.g., Analytical, Aggressive, Humorous)",
+        "influence_level": "High/Medium/Low",
+        "target_audience": ["Audience 1", "Audience 2"],
         "stance": "Likely stance",
-        "role": "Likely role"
+        "role": "Role (e.g., Influencer, Expert, Journalist, Regular User)"
       }}
     }}
   ]
@@ -676,9 +686,6 @@ Return format:
                     )
                     state.entities_count = len(filtered.entities)
                     state.entity_types = list(filtered.entity_types)
-                    print("\n=== CUSTOM ENTITIES ===")
-                    for entity in custom_entity_nodes:
-                        print(f"Name: {entity.name}, Type: {entity.get_entity_type()}")
 
             if progress_callback:
                 progress_callback(
