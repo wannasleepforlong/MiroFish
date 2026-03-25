@@ -120,32 +120,84 @@ def assess_simulation_fit():
   "recommended_next_step": "建议下一步"
 }}"""
         else:
-            system_prompt = "You are a social simulation planning expert. Judge whether the provided documents and prompt are a good fit for running a social simulation. Return JSON only."
-            user_prompt = f"""Assess whether this document + simulation-goal pair is a good candidate for a social media simulation, and whether the simulation is likely to produce useful results.
+            system_prompt = "You are an expert social simulation architect. Evaluate simulation feasibility rigorously. Reject projects that won't benefit from simulation. Return ONLY valid JSON."
+            user_prompt = f"""TASK: Assess whether this project justifies running a multi-agent social media simulation.
 
-Evaluate:
-1. Whether simulation is actually necessary versus simpler analysis.
-2. Whether the documents contain enough grounded context for a credible simulation.
-3. Whether the prompt is specific enough to produce useful outcomes.
-4. If it is not a good fit, explain why clearly.
-
-Simulation goal:
+SIMULATION GOAL:
 {simulation_requirement[:3000]}
 
-Document excerpt:
+DOCUMENT CONTEXT:
 {context_excerpt}
 
-Return JSON:
+---
+
+EVALUATION FRAMEWORK:
+
+**RED FLAGS (Any present → confidence <50):**
+- Goal is purely informational/factual (just needs data extraction, not dynamics)
+- Documents lack specific actor names, roles, or organizational structures
+- Problem is purely technical or doesn't involve human behavior/decisions
+- No clear stakeholder groups with conflicting interests
+- Time horizon is very short (hours) or very long (years)
+- The outcome is deterministic (same input always = same output)
+
+**GREEN FLAGS (Each present → confidence +15-20):**
+- Multiple stakeholder groups with different goals/incentives
+- Documents contain specific people, organizations, positions, relationships
+- Problem involves emergent behavior, cascade effects, or narrative dynamics
+- Social media/communication is central to the problem
+- Time horizon is weeks to months (sweet spot for simulation)
+- Outcome depends on human choices, not just rules/policies
+
+**REQUIRED DATA ELEMENTS (document must have most of these):**
+- Specific entity names (people, orgs, institutions)
+- Stated positions, motivations, or goals of key actors
+- Relationships or conflicts between actors
+- Historical context or precedents
+- Relevant communication channels or platforms
+- Constraints or incentives that shape behavior
+
+---
+
+ASSESSMENT PROCESS:
+
+1. **Check RED FLAGS first**: If 2+ present, set confidence ≤40, recommend "alternative approach"
+
+2. **Evaluate DATA QUALITY**: Count how many of the 6 required elements exist
+   - 6/6 = excellent grounding
+   - 4-5/6 = good grounding
+   - 2-3/6 = weak grounding
+   - <2/6 = insufficient, likely unsuitable
+
+3. **Assess SIMULATION VALUE**: Would simulation actually answer the question?
+   - YES = simulation is core to goal (confidence +25)
+   - MAYBE = simulation could help but not essential (confidence +10)
+   - NO = alternative analysis better (confidence -20)
+
+4. **Evaluate SCOPE CLARITY**: Is simulation scope well-defined?
+   - Clear agents, clear time period, clear success metrics (confidence +20)
+   - Partially clear (confidence +5)
+   - Vague or too broad (confidence -15)
+
+5. **FINAL CONFIDENCE CALCULATION**:
+   - Start: 50
+   - Add/subtract based above factors
+   - Cap: 0-100
+   - Threshold: ≥60 = "should_run_simulation": true
+
+---
+
+Return ONLY this JSON (no markdown, no code blocks):
 {{
+  "reasoning": "2-3 sentence explanation of your decision based on framework above",
   "should_run_simulation": true,
   "confidence": 78,
-  "summary": "One-line conclusion",
-  "simulation_value": "Why simulation is or is not worth running here",
-  "document_sufficiency": "Assessment of document adequacy",
+  "summary": "One-line verdict",
+  "simulation_value": "Specific insights simulation will provide (be concrete, not generic)",
+  "document_sufficiency": "Quality assessment: which required elements present/missing",
   "likely_limitations": ["limitation 1", "limitation 2"],
-  "recommended_next_step": "Best next step"
+  "recommended_next_step": "SPECIFIC ACTION: run simulation | gather [what data] | refine prompt to [specific change] | use [alternative method] instead"
 }}"""
-
         llm = LLMClient()
         result = llm.chat_json(
             [
