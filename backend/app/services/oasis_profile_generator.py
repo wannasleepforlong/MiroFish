@@ -184,9 +184,11 @@ class OasisProfileGenerator:
         model_name: Optional[str] = None,
         zep_api_key: Optional[str] = None,
         graph_id: Optional[str] = None,
-        language: str = "zh"
+        language: str = "zh",
+        project_id: Optional[str] = None
     ):
         self.language = language
+        self.project_id = project_id
         
         # Initialize LLM clients
         self.clients = []
@@ -244,7 +246,8 @@ class OasisProfileGenerator:
         self, 
         entity: EntityNode, 
         user_id: int,
-        use_llm: bool = True
+        use_llm: bool = True,
+        project_id: Optional[str] = None
     ) -> OasisAgentProfile:
         """
         Generate OASIS Agent Profile from Zep entity
@@ -273,7 +276,9 @@ class OasisProfileGenerator:
                 entity_type=entity_type,
                 entity_summary=entity.summary,
                 entity_attributes=entity.attributes,
-                context=context
+                context=context,
+                project_id=project_id or self.project_id
+
             )
         else:
             # Use rules to generate basic persona
@@ -531,7 +536,8 @@ class OasisProfileGenerator:
         entity_type: str,
         entity_summary: str,
         entity_attributes: Dict[str, Any],
-        context: str
+        context: str,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Use LLM to generate very detailed persona
@@ -576,6 +582,18 @@ class OasisProfileGenerator:
                     temperature=0.7 - (attempt * 0.1)  # Lower temperature on each retry
                     # No max_tokens set, let LLM generate freely
                 )
+                if project_id:
+                    from ..services.llm_cost_tracker import LLMCostTracker
+                    tracker = LLMCostTracker()
+                    tracker.track_llm_call(
+                        operation_name="agent_profile_generation",
+                        model=model,
+                        provider=self._get_provider_name(getattr(client._client_config, 'base_url', 'unknown')),
+                        input_tokens=response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
+                        output_tokens=response.usage.completion_tokens if hasattr(response, 'usage') else 0,
+                        project_id=project_id,
+                        simulation_id=None
+                    )
                 
                 content = response.choices[0].message.content
                 
@@ -1183,6 +1201,17 @@ Important:
             self._save_twitter_csv(profiles, file_path)
         else:
             self._save_reddit_json(profiles, file_path)
+    
+    def _get_provider_name(self, base_url: str) -> str:
+        """Extract provider name from base URL"""
+        if "mistral" in str(base_url).lower():
+            return "mistral"
+        elif "openai" in str(base_url).lower():
+            return "openai"
+        elif "anthropic" in str(base_url).lower():
+            return "anthropic"
+        else:
+            return "unknown"
     
     def _save_twitter_csv(self, profiles: List[OasisAgentProfile], file_path: str):
         """

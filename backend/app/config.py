@@ -143,6 +143,8 @@ class Config:
     # ------------------------------------------------------------------ #
     LANGUAGE = os.environ.get('LANGUAGE', 'en')
     NEWS_API_KEY = os.environ.get('NEWS_API_KEY')
+    SUPABASE_URL = os.environ.get('SUPABASE_URL')
+    SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 
     # ------------------------------------------------------------------ #
     #  Helpers                                                             #

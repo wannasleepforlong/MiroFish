@@ -176,7 +176,8 @@ class OntologyGenerator:
         self,
         document_texts: List[str],
         simulation_requirement: str,
-        additional_context: Optional[str] = None
+        additional_context: Optional[str] = None,
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """
         Generate ontology definition
@@ -207,11 +208,12 @@ class OntologyGenerator:
         
         # Call LLM
         result = self.llm_client.chat_json(
-            messages=messages,
-            temperature=0.3,
-            max_tokens=4096
+            messages,
+            temperature=0.1,
+            operation_name="ontology_generation",
+            project_id=project_id,
+            simulation_id=None
         )
-        
         # Validate and post-process
         result = self._validate_and_process(result)
         

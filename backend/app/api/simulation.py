@@ -2750,3 +2750,47 @@ def close_simulation_env():
             "error": str(e),
             
         }), 500
+
+@simulation_bp.route('/simulation/<simulation_id>/costs', methods=['GET'])
+def get_simulation_costs(simulation_id: str):
+    """
+    Get LLM token usage and costs for a simulation
+    
+    Returns:
+        {
+            "simulation_id": "sim_xxx",
+            "total_input_tokens": 5000,
+            "total_output_tokens": 2000,
+            "total_tokens": 7000,
+            "breakdown_by_operation": {
+                "ontology_generation": {"input_tokens": 1000, "output_tokens": 200, "calls": 1},
+                "entity_discovery": {"input_tokens": 2000, "output_tokens": 500, "calls": 2},
+                ...
+            },
+            "total_calls": 8
+        }
+    """
+    try:
+        from ..services.llm_cost_tracker import LLMCostTracker
+        
+        tracker = LLMCostTracker()
+        costs = tracker.get_simulation_costs(simulation_id)
+        
+        if not costs:
+            return jsonify({
+                "success": False,
+                "error": "No cost data found for this simulation"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "data": costs
+        })
+    
+    except Exception as e:
+        logger.error(f"Failed to get simulation costs: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500

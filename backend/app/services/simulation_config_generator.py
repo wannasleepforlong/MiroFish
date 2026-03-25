@@ -300,13 +300,13 @@ class SimulationConfigGenerator:
         # ========== Step 1: Generate time configuration ==========
         report_progress(1, "Generating time configuration...")
         num_entities = len(entities)
-        time_config_result = self._generate_time_config(context, num_entities)
+        time_config_result = self._generate_time_config(context, num_entities, project_id)        
         time_config = self._parse_time_config(time_config_result, num_entities)
         reasoning_parts.append(f"Time config: {time_config_result.get('reasoning', 'Success')}")
         
         # ========== Step 2: Generate event configuration ==========
         report_progress(2, "Generating event configuration and hot topics...")
-        event_config_result = self._generate_event_config(context, simulation_requirement, entities)
+        event_config_result = self._generate_event_config(context, simulation_requirement, entities, project_id)
         event_config = self._parse_event_config(event_config_result)
         reasoning_parts.append(f"Event config: {event_config_result.get('reasoning', 'Success')}")
         
@@ -326,7 +326,9 @@ class SimulationConfigGenerator:
                 context=context,
                 entities=batch_entities,
                 start_idx=start_idx,
-                simulation_requirement=simulation_requirement
+                simulation_requirement=simulation_requirement,
+                project_id=project_id
+
             )
             all_agent_configs.extend(batch_configs)
         
@@ -437,7 +439,7 @@ class SimulationConfigGenerator:
         
         return "\n".join(lines)
     
-    def _call_llm_with_retry(self, prompt: str, system_prompt: str) -> Dict[str, Any]:
+    def _call_llm_with_retry(self, prompt: str, system_prompt: str, project_id: Optional[str] = None) -> Dict[str, Any]:
         """LLM call with retry, includes JSON repair logic"""
         import re
         
@@ -453,7 +455,10 @@ class SimulationConfigGenerator:
                         {"role": "user", "content": prompt}
                     ],
                     response_format={"type": "json_object"},
-                    temperature=0.7 - (attempt * 0.1)  # Lower temperature on each retry
+                    temperature=0.7 - (attempt * 0.1),  # Lower temperature on each retry
+                    operation_name="simulation_config_generation",
+                    project_id=project_id,
+                    simulation_id=None
                 )
                 
                 # Try parsing JSON
@@ -529,7 +534,7 @@ class SimulationConfigGenerator:
         
         return None
     
-    def _generate_time_config(self, context: str, num_entities: int) -> Dict[str, Any]:
+    def _generate_time_config(self, context: str, num_entities: int, project_id: Optional[str] = None) -> Dict[str, Any]:        
         """Generate time configuration"""
         # Use configured context truncation length
         context_truncated = context[:self.TIME_CONFIG_CONTEXT_LENGTH]
@@ -631,7 +636,7 @@ Field descriptions:
             system_prompt = "You are a social media simulation expert. Return pure JSON format. Time configuration should match Chinese daily habits."
         
         try:
-            return self._call_llm_with_retry(prompt, system_prompt)
+            return self._call_llm_with_retry(prompt, system_prompt, project_id)
         except Exception as e:
             logger.warning(f"Time config LLM generation failed: {e}, using default config")
             return self._get_default_time_config(num_entities)
@@ -690,7 +695,8 @@ Field descriptions:
         self, 
         context: str, 
         simulation_requirement: str,
-        entities: List[EntityNode]
+        entities: List[EntityNode],
+        project_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generate event configuration"""
         
@@ -780,7 +786,7 @@ Return JSON format (no markdown):
             system_prompt = "You are a public opinion analysis expert. Return pure JSON format. poster_type must exactly match available entity types."
         
         try:
-            return self._call_llm_with_retry(prompt, system_prompt)
+            return self._call_llm_with_retry(prompt, system_prompt, project_id)
         except Exception as e:
             logger.warning(f"Event config LLM generation failed: {e}, using default config")
             return {
@@ -889,7 +895,8 @@ Return JSON format (no markdown):
         context: str,
         entities: List[EntityNode],
         start_idx: int,
-        simulation_requirement: str
+        simulation_requirement: str,
+        project_id: Optional[str] = None
     ) -> List[AgentActivityConfig]:
         """Generate Agent configurations in batches"""
         
@@ -982,7 +989,7 @@ Return JSON format (no markdown):
             system_prompt = "You are a social media behavior analysis expert. Return pure JSON. Configuration should match Chinese daily habits."
         
         try:
-            result = self._call_llm_with_retry(prompt, system_prompt)
+            result = self._call_llm_with_retry(prompt, system_prompt, project_id)
             llm_configs = {cfg["agent_id"]: cfg for cfg in result.get("agent_configs", [])}
         except Exception as e:
             logger.warning(f"Agent config batch LLM generation failed: {e}, using rule-based generation")

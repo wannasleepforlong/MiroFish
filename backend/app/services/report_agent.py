@@ -1103,7 +1103,9 @@ class ReportAgent:
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3
+                temperature=0.3,
+                operation_name="report_outline_generation",
+                simulation_id=self.simulation_id
             )
             
             if progress_callback:
@@ -1231,7 +1233,9 @@ class ReportAgent:
             response = self.llm.chat(
                 messages=messages,
                 temperature=0.5,
-                max_tokens=4096
+                max_tokens=4096,
+                operation_name="report_section_writing",
+                simulation_id=self.simulation_id
             )
 
             # Check if LLM returned None (API exception or empty content)
@@ -1434,8 +1438,12 @@ class ReportAgent:
         response = self.llm.chat(
             messages=messages,
             temperature=0.5,
-            max_tokens=4096
+            max_tokens=4096,
+            operation_name="report_section_force_finalization",
+            simulation_id=self.simulation_id
         )
+ 
+        # Check if LLM returned None during forced finalization
 
         # Check if LLM returned None during forced finalization
         if response is None:
@@ -1757,7 +1765,9 @@ class ReportAgent:
         for iteration in range(max_iterations):
             response = self.llm.chat(
                 messages=messages,
-                temperature=0.5
+                temperature=0.5,
+                operation_name="report_reflection",
+                simulation_id=self.simulation_id
             )
             
             # Parse tool calls
@@ -1797,7 +1807,9 @@ class ReportAgent:
         # Reached max iterations, get final response
         final_response = self.llm.chat(
             messages=messages,
-            temperature=0.5
+            temperature=0.5,
+            operation_name="report_reflection_final",
+            simulation_id=self.simulation_id
         )
         
         # Clean response

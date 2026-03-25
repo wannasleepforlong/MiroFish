@@ -60,7 +60,8 @@ class GraphBuilderService:
         graph_name: str = "MiroFish Graph",
         chunk_size: int = 500,
         chunk_overlap: int = 50,
-        batch_size: int = 3
+        batch_size: int = 3,
+        project_id: Optional[str] = None
     ) -> str:
         """
         异步构建图谱
@@ -89,7 +90,7 @@ class GraphBuilderService:
         # 在后台线程中执行构建
         thread = threading.Thread(
             target=self._build_graph_worker,
-            args=(task_id, text, ontology, graph_name, chunk_size, chunk_overlap, batch_size)
+            args=(task_id, text, ontology, graph_name, chunk_size, chunk_overlap, batch_size, project_id)
         )
         thread.daemon = True
         thread.start()
@@ -104,7 +105,8 @@ class GraphBuilderService:
         graph_name: str,
         chunk_size: int,
         chunk_overlap: int,
-        batch_size: int
+        batch_size: int,
+        project_id: Optional[str] = None
     ):
         """图谱构建工作线程"""
         try:
@@ -574,7 +576,7 @@ class GraphBuilderService:
         """删除图谱"""
         self.client.graph.delete(graph_id=graph_id)
 
-    def _generate_smart_news_queries(self, query: str, context_text: Optional[str] = None, k: int = 3) -> List[str]:
+    def _generate_smart_news_queries(self, query: str, context_text: Optional[str] = None, k: int = 3, project_id: Optional[str] = None) -> List[str]:        
         """
         Use an LLM to generate k optimized NewsAPI search queries.
         """
@@ -605,7 +607,13 @@ Example format: ["EU AI Act compliance", "generative AI regulation Europe", "AI 
                 {"role": "user", "content": user_prompt}
             ]
             
-            smart_queries = llm.chat_json(messages, temperature=0.1)
+            smart_queries = llm.chat_json(
+                messages, 
+                temperature=0.1,
+                operation_name="graph_smart_queries",
+                project_id=project_id,
+                simulation_id=None
+            )
             if isinstance(smart_queries, list):
                 # Filter out empty or non-string results
                 smart_queries = [str(q).strip() for q in smart_queries if q]
@@ -617,7 +625,7 @@ Example format: ["EU AI Act compliance", "generative AI regulation Europe", "AI 
             print(f"DEBUG: _generate_smart_news_queries - error: {e}")
             return [query]
 
-    def _filter_relevant_articles(self, articles: List[Dict], query: str, limit: int = 5) -> List[Dict]:
+    def _filter_relevant_articles(self, articles: List[Dict], query: str, limit: int = 5, project_id: Optional[str] = None) -> List[Dict]:
         """
         Use LLM to score and filter articles by relevance to the simulation requirement.
         Returns the top N most relevant articles.
@@ -653,7 +661,13 @@ Return a JSON array of indices (e.g., [1, 3, 5]) of the most relevant articles. 
                 {"role": "user", "content": user_prompt}
             ]
             
-            selected_indices = llm.chat_json(messages, temperature=0.1)
+            selected_indices = llm.chat_json(
+                messages, 
+                temperature=0.1,
+                operation_name="graph_entity_selection",
+                project_id=project_id,
+                simulation_id=None
+            )
             
             if isinstance(selected_indices, list) and selected_indices:
                 # Convert 1-based indices to 0-based
@@ -669,7 +683,7 @@ Return a JSON array of indices (e.g., [1, 3, 5]) of the most relevant articles. 
             print(f"DEBUG: _filter_relevant_articles - error: {e}")
             return []
 
-    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 5, context_text: Optional[str] = None) -> Optional[str]:
+    def fetch_and_add_news(self, graph_id: str, query: str, limit: int = 5, context_text: Optional[str] = None, project_id: Optional[str] = None) -> Optional[str]:
         """
         获取实时新闻并添加到图谱作为初始种子
         """
@@ -682,7 +696,7 @@ Return a JSON array of indices (e.g., [1, 3, 5]) of the most relevant articles. 
             fetcher = LiveDataFetcher(api_key=Config.NEWS_API_KEY)
             
             # Generate multiple smart queries
-            search_queries = self._generate_smart_news_queries(query, context_text, k=3)
+            search_queries = self._generate_smart_news_queries(query, context_text, k=3, project_id=project_id)
             
             all_articles = []
             seen_urls = set()
@@ -710,7 +724,7 @@ Return a JSON array of indices (e.g., [1, 3, 5]) of the most relevant articles. 
             
             # Use LLM to filter for most relevant articles
             print(f"DEBUG: fetch_and_add_news - filtering for relevance...")
-            news_items = self._filter_relevant_articles(all_articles, query, limit)
+            news_items = self._filter_relevant_articles(all_articles, query, limit, project_id=project_id)
             if not news_items:
                 # Fallback to original behavior if LLM filtering fails
                 print(f"DEBUG: fetch_and_add_news - LLM filtering failed, using default selection")

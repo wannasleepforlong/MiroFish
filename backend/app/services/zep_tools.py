@@ -421,7 +421,7 @@ class ZepToolsService:
     MAX_RETRIES = 3
     RETRY_DELAY = 2.0
     
-    def __init__(self, api_key: Optional[str] = None, llm_client: Optional[LLMClient] = None):
+    def __init__(self, api_key: Optional[str] = None, llm_client: Optional[LLMClient] = None, simulation_id: Optional[str] = None):
         self.api_key = api_key or Config.ZEP_API_KEY
         if not self.api_key:
             raise ValueError("ZEP_API_KEY is not configured")
@@ -429,6 +429,7 @@ class ZepToolsService:
         self.client = Zep(api_key=self.api_key)
         # LLM client used by InsightForge to generate sub-questions
         self._llm_client = llm_client
+        self.simulation_id = simulation_id
         logger.info("ZepToolsService initialized successfully")
     
     @property
@@ -1125,7 +1126,9 @@ Return a JSON-formatted list of sub-questions."""
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3
+                temperature=0.3,
+                operation_name="zep_subquestions_generation",
+                simulation_id=self.simulation_id
             )
             
             sub_queries = response.get("sub_queries", [])
@@ -1608,7 +1611,9 @@ Please select up to {max_agents} most suitable agents for interview and explain 
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.3
+                temperature=0.3,
+                operation_name="zep_agent_selection",
+                simulation_id=self.simulation_id
             )
             
             selected_indices = response.get("selected_indices", [])[:max_agents]
@@ -1667,7 +1672,9 @@ Please generate 3-5 interview questions."""
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.5
+                temperature=0.3,
+                operation_name="zep_agent_reasoning",
+                simulation_id=self.simulation_id
             )
             
             return response.get("questions", [f"What are your thoughts on {interview_requirement}?"])
@@ -1725,7 +1732,9 @@ Please generate an interview summary."""
                     {"role": "user", "content": user_prompt}
                 ],
                 temperature=0.3,
-                max_tokens=800
+                max_tokens=800,
+                operation_name="zep_summary_generation",
+                simulation_id=self.simulation_id
             )
             return summary
             

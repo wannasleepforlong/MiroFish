@@ -157,6 +157,7 @@ class EntityDeduplicator:
     def deduplicate(
         self,
         graph_id: str,
+        project_id: Optional[str] = None,
         progress_callback: Optional[Callable[[str, float], None]] = None,
         dry_run: bool = False,
     ) -> DeduplicationReport:
@@ -216,7 +217,7 @@ class EntityDeduplicator:
 
         # Find duplicate groups using LLM
         _progress("Analyzing entities for duplicates...")
-        duplicate_groups = self._find_duplicates(node_list)
+        duplicate_groups = self._find_duplicates(node_list, project_id=project_id)
 
         if not duplicate_groups:
             _progress("No duplicate entities found")
@@ -364,7 +365,7 @@ class EntityDeduplicator:
     # ------------------------------------------------------------------
 
     def _find_duplicates(
-        self, node_list: List[Dict[str, Any]]
+    self, node_list: List[Dict[str, Any]], project_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
         First use name similarity + type compatibility pre-filtering, 
@@ -385,13 +386,13 @@ class EntityDeduplicator:
 
         all_groups: List[Dict[str, Any]] = []
         for cluster in clusters:
-            groups = self._find_duplicates_single_batch(cluster)
+            groups = self._find_duplicates_single_batch(cluster, project_id=project_id)
             all_groups.extend(groups)
 
         return all_groups
 
     def _find_duplicates_single_batch(
-        self, node_list: List[Dict[str, Any]]
+        self, node_list: List[Dict[str, Any]], project_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Use LLM to confirm if a group of candidate nodes are duplicates"""
         nodes_desc = "\n".join(
@@ -417,7 +418,12 @@ class EntityDeduplicator:
 
         try:
             result = self.llm_client.chat_json(
-                messages=messages, temperature=0.1, max_tokens=4096
+                messages=messages,
+                temperature=0.1,
+                max_tokens=4096,
+                operation_name="entity_deduplication",
+                project_id=project_id,
+                simulation_id=None
             )
             groups = result.get("duplicate_groups", [])
             return self._validate_groups(groups, node_list)
