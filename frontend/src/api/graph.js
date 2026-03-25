@@ -38,6 +38,27 @@ export function buildGraph(data) {
 }
 
 /**
+ * Assess whether simulation is likely to be useful for the provided files and prompt.
+ * @param {FormData} formData
+ * @returns {Promise}
+ */
+export function assessSimulationFit(formData) {
+  if (!formData.has('language')) {
+    formData.append('language', localStorage.getItem('locale') || 'en')
+  }
+  return requestWithRetry(() =>
+    service({
+      url: '/api/graph/simulation/assess',
+      method: 'post',
+      data: formData,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+  )
+}
+
+/**
  * Fetch task status.
  * @param {String} taskId - Task ID
  * @returns {Promise}

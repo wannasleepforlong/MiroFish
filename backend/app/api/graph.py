@@ -6,6 +6,7 @@ send the full working state between requests.
 """
 
 import os
+import tempfile
 import traceback
 import threading
 from flask import request, jsonify
@@ -15,6 +16,7 @@ from ..config import Config
 from ..services.ontology_generator import OntologyGenerator
 from ..services.graph_builder import GraphBuilderService
 from ..services.text_processor import TextProcessor
+from ..utils.llm_client import LLMClient
 from ..utils.file_parser import FileParser
 from ..utils.logger import get_logger
 from ..models.task import TaskManager, TaskStatus
@@ -30,6 +32,150 @@ def allowed_file(filename: str) -> bool:
         return False
     ext = os.path.splitext(filename)[1].lower().lstrip('.')
     return ext in Config.ALLOWED_EXTENSIONS
+
+
+@graph_bp.route('/simulation/assess', methods=['POST'])
+def assess_simulation_fit():
+    """
+    Quickly assess whether running a simulation is likely to be useful.
+
+    Request type: multipart/form-data
+    Parameters:
+        files: uploaded files (PDF/MD/TXT), multiple allowed
+        simulation_requirement: simulation prompt / goal
+        language: optional language hint
+    """
+    try:
+        simulation_requirement = request.form.get('simulation_requirement', '').strip()
+        language = request.form.get('language', Config.LANGUAGE)
+        uploaded_files = request.files.getlist('files')
+
+        if not simulation_requirement:
+            return jsonify({
+                "success": False,
+                "error": "Please provide simulation_requirement"
+            }), 400
+
+        if not uploaded_files or all(not f.filename for f in uploaded_files):
+            return jsonify({
+                "success": False,
+                "error": "Please upload at least one document"
+            }), 400
+
+        document_texts = []
+        file_names = []
+        for file in uploaded_files:
+            if file and file.filename and allowed_file(file.filename):
+                suffix = os.path.splitext(file.filename)[1]
+                temp_path = None
+                try:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+                        temp_file.write(file.read())
+                        temp_path = temp_file.name
+                    text = FileParser.extract_text(temp_path)
+                    text = TextProcessor.preprocess_text(text)
+                    if text:
+                        document_texts.append(text)
+                        file_names.append(file.filename)
+                finally:
+                    if temp_path and os.path.exists(temp_path):
+                        try:
+                            os.remove(temp_path)
+                        except OSError:
+                            pass
+
+        if not document_texts:
+            return jsonify({
+                "success": False,
+                "error": "No documents were processed successfully. Check the file formats."
+            }), 400
+
+        combined_text = "\n\n".join(document_texts)
+        context_excerpt = combined_text[:12000]
+
+        if language == 'zh':
+            system_prompt = "你是社会仿真项目评估专家。请判断给定材料是否值得做社交仿真，并返回 JSON。"
+            user_prompt = f"""请评估下面这组“文档 + 模拟目标”是否适合进行社交媒体仿真，以及仿真是否有望得到较好的结果。
+
+评估维度：
+1. 是否真的有必要做 simulation，而不是简单总结/抽取即可。
+2. 文档信息是否足够支撑一个可信的仿真。
+3. 该 prompt 是否足够明确，能让仿真产出有价值的观察。
+4. 如果不适合，请明确指出原因。
+
+模拟目标：
+{simulation_requirement[:3000]}
+
+文档内容摘录：
+{context_excerpt}
+
+返回 JSON：
+{{
+  "should_run_simulation": true,
+  "confidence": 78,
+  "summary": "一句话结论",
+  "simulation_value": "为什么值得做或不值得做",
+  "document_sufficiency": "文档充分性判断",
+  "likely_limitations": ["限制1", "限制2"],
+  "recommended_next_step": "建议下一步"
+}}"""
+        else:
+            system_prompt = "You are a social simulation planning expert. Judge whether the provided documents and prompt are a good fit for running a social simulation. Return JSON only."
+            user_prompt = f"""Assess whether this document + simulation-goal pair is a good candidate for a social media simulation, and whether the simulation is likely to produce useful results.
+
+Evaluate:
+1. Whether simulation is actually necessary versus simpler analysis.
+2. Whether the documents contain enough grounded context for a credible simulation.
+3. Whether the prompt is specific enough to produce useful outcomes.
+4. If it is not a good fit, explain why clearly.
+
+Simulation goal:
+{simulation_requirement[:3000]}
+
+Document excerpt:
+{context_excerpt}
+
+Return JSON:
+{{
+  "should_run_simulation": true,
+  "confidence": 78,
+  "summary": "One-line conclusion",
+  "simulation_value": "Why simulation is or is not worth running here",
+  "document_sufficiency": "Assessment of document adequacy",
+  "likely_limitations": ["limitation 1", "limitation 2"],
+  "recommended_next_step": "Best next step"
+}}"""
+
+        llm = LLMClient()
+        result = llm.chat_json(
+            [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
+            max_tokens=1200,
+        )
+
+        return jsonify({
+            "success": True,
+            "data": {
+                "should_run_simulation": bool(result.get("should_run_simulation", False)),
+                "confidence": int(result.get("confidence", 0) or 0),
+                "summary": str(result.get("summary", "")).strip(),
+                "simulation_value": str(result.get("simulation_value", "")).strip(),
+                "document_sufficiency": str(result.get("document_sufficiency", "")).strip(),
+                "likely_limitations": result.get("likely_limitations", []) or [],
+                "recommended_next_step": str(result.get("recommended_next_step", "")).strip(),
+                "files_analyzed": file_names,
+                "document_length": len(combined_text),
+            }
+        })
+    except Exception as e:
+        logger.error(f"Simulation fit assessment failed: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+        }), 500
 
 
 # ============== Project management endpoints ==============

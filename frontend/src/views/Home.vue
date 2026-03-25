@@ -334,7 +334,12 @@
           </div>
         </div>
 
-        <!-- Launch button -->
+        <div class="launch-actions">
+          <button class="verify-fit-btn" @click="verifySimulationFit" :disabled="!canSubmit || loading || verifyingFit">
+            <span v-if="!verifyingFit">Verify Fit</span>
+            <span v-else class="loading-dots">Checking</span>
+          </button>
+          <!-- Launch button -->
         <button class="start-engine-btn" @click="startSimulation" :disabled="!canSubmit || loading">
           <div class="btn-left">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -345,6 +350,20 @@
           </div>
           <span class="btn-arrow">→</span>
         </button>
+        </div>
+        <div v-if="fitAssessment" class="fit-result-card" :class="{ positive: fitAssessment.should_run_simulation, caution: !fitAssessment.should_run_simulation }">
+          <div class="fit-result-header">
+            <span class="fit-result-title">{{ fitAssessment.should_run_simulation ? 'Simulation looks worthwhile' : 'Simulation may not be the best next step' }}</span>
+            <span class="fit-result-score">Confidence {{ fitAssessment.confidence || 0 }}%</span>
+          </div>
+          <p class="fit-result-summary">{{ fitAssessment.summary }}</p>
+          <div class="fit-result-detail"><strong>Value:</strong> {{ fitAssessment.simulation_value }}</div>
+          <div class="fit-result-detail"><strong>Document sufficiency:</strong> {{ fitAssessment.document_sufficiency }}</div>
+          <div v-if="fitAssessment.likely_limitations?.length" class="fit-result-detail">
+            <strong>Likely limitations:</strong> {{ fitAssessment.likely_limitations.join(' • ') }}
+          </div>
+          <div class="fit-result-detail"><strong>Next step:</strong> {{ fitAssessment.recommended_next_step }}</div>
+        </div>
       </div>
     </section>
 
@@ -360,6 +379,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import HistoryDatabase from '../components/HistoryDatabase.vue'
+import { assessSimulationFit } from '../api/graph'
 
 const router = useRouter()
 const { t, locale } = useI18n()
@@ -376,6 +396,8 @@ const isDragOver = ref(false)
 const fileInput = ref(null)
 const consoleRef = ref(null)
 const promptFocused = ref(false)
+const verifyingFit = ref(false)
+const fitAssessment = ref(null)
 
 const canSubmit = computed(() =>
   formData.value.simulationRequirement.trim() !== '' && files.value.length > 0
@@ -411,6 +433,46 @@ const startSimulation = () => {
     setPendingUpload(files.value, formData.value.simulationRequirement, formData.value.enableNews)
     router.push({ name: 'Process', params: { projectId: 'new' } })
   })
+}
+
+const verifySimulationFit = async () => {
+  if (!canSubmit.value || loading.value || verifyingFit.value) return
+
+  verifyingFit.value = true
+  fitAssessment.value = null
+
+  try {
+    const form = new FormData()
+    form.append('simulation_requirement', formData.value.simulationRequirement)
+    files.value.forEach(file => form.append('files', file))
+
+    const res = await assessSimulationFit(form)
+    if (res.success && res.data) {
+      fitAssessment.value = res.data
+    } else {
+      fitAssessment.value = {
+        should_run_simulation: false,
+        confidence: 0,
+        summary: res.error || 'Unable to verify simulation fit.',
+        simulation_value: '',
+        document_sufficiency: '',
+        likely_limitations: [],
+        recommended_next_step: 'Review the prompt and uploaded documents, then try again.'
+      }
+    }
+  } catch (err) {
+    fitAssessment.value = {
+      should_run_simulation: false,
+      confidence: 0,
+      summary: err.message || 'Unable to verify simulation fit.',
+      simulation_value: '',
+      document_sufficiency: '',
+      likely_limitations: [],
+      recommended_next_step: 'Try again after checking the uploaded files.'
+    }
+  } finally {
+    verifyingFit.value = false
+  }
 }
 </script>
 
@@ -877,8 +939,40 @@ const startSimulation = () => {
 .toggle-desc { font-size: 0.72rem; color: #9ca3af; }
 
 /* Launch button */
+.launch-actions {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.verify-fit-btn {
+  min-width: 146px;
+  border: 1px solid #dbe2ea;
+  background: #f8fafc;
+  color: #0f172a;
+  border-radius: 14px;
+  padding: 18px 18px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+
+.verify-fit-btn:not(:disabled):hover {
+  border-color: #2563EB;
+  color: #2563EB;
+  transform: translateY(-2px);
+}
+
+.verify-fit-btn:disabled {
+  background: #f1f5f9;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
 .start-engine-btn {
-  width: 100%; background: #0a0a0a; color: white; border: none;
+  flex: 1; background: #0a0a0a; color: white; border: none;
   padding: 18px 24px; font-family: 'DM Sans', sans-serif; font-weight: 700;
   font-size: 1rem; border-radius: 14px;
   display: flex; justify-content: space-between; align-items: center;
@@ -888,6 +982,59 @@ const startSimulation = () => {
 .start-engine-btn:not(:disabled):hover { background: #2563EB; transform: translateY(-2px); box-shadow: 0 8px 24px rgba(37,99,235,0.38); }
 .start-engine-btn:disabled { background: #e5e7eb; color: #9ca3af; cursor: not-allowed; }
 .btn-arrow { font-size: 1.3rem; }
+.fit-result-card {
+  margin-top: 14px;
+  border-radius: 16px;
+  padding: 16px 18px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.fit-result-card.positive {
+  border-color: #bbf7d0;
+  background: #f0fdf4;
+}
+
+.fit-result-card.caution {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.fit-result-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.fit-result-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: #111827;
+}
+
+.fit-result-score {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.fit-result-summary {
+  font-size: 0.9rem;
+  color: #111827;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.fit-result-detail {
+  font-size: 0.82rem;
+  color: #475569;
+  line-height: 1.5;
+  margin-top: 6px;
+}
+
 .loading-dots::after { content: '...'; animation: dots 1.2s steps(4, end) infinite; }
 @keyframes dots { 0%,20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
 
@@ -897,5 +1044,7 @@ const startSimulation = () => {
   .dashboard-section { flex-direction: column; padding: 60px 24px; }
   .hero-section { min-height: 70vh; }
   .float-card { display: none; }
+  .launch-actions { flex-direction: column; }
+  .verify-fit-btn { width: 100%; }
 }
 </style>
