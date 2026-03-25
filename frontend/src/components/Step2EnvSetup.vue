@@ -1,23 +1,22 @@
 <template>
-  <div class="env-setup-panel">
-    <div class="scroll-container">
-      <!-- Step 01: Simulation Instance -->
+  <div class="workbench-panel">
+    <div class="scroll-container custom-scrollbar">
       <div class="step-card" :class="{ 'active': phase === 0, 'completed': phase > 0 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">01</span>
-            <span class="step-title">{{ $t('step2.simInit') }}</span>
+            <span class="step-title">Simulation Initialization</span>
           </div>
           <div class="step-status">
-            <span v-if="phase > 0" class="badge success">{{ $t('step1.completed') }}</span>
-            <span v-else class="badge processing">{{ $t('step2.initStatus') }}</span>
+            <span v-if="phase > 0" class="badge success">COMPLETED</span>
+            <span v-else class="badge processing">INITIALIZING</span>
           </div>
         </div>
         
         <div class="card-content">
           <p class="api-note">POST /api/simulation/create</p>
           <p class="description">
-            {{ $t('step2.simInitDesc') }}
+            Creating new simulation instance and loading parameters...
           </p>
 
           <div v-if="simulationId" class="info-card">
@@ -35,54 +34,51 @@
             </div>
             <div class="info-row">
               <span class="info-label">Task ID</span>
-              <span class="info-value mono">{{ taskId || $t('step2.asyncDone') }}</span>
+              <span class="info-value mono">{{ taskId || 'Async task completed' }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- Step 02: Generate Agent Personas -->
       <div class="step-card" :class="{ 'active': phase === 1, 'completed': phase > 1 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">02</span>
-            <span class="step-title">{{ $t('step2.agentPersona') }}</span>
+            <span class="step-title">Generate Agent Personas</span>
           </div>
           <div class="step-status">
-            <span v-if="phase > 1" class="badge success">{{ $t('step1.completed') }}</span>
+            <span v-if="phase > 1" class="badge success">COMPLETED</span>
             <span v-else-if="phase === 1" class="badge processing">{{ prepareProgress }}%</span>
-            <span v-else class="badge pending">{{ $t('step1.pending') }}</span>
+            <span v-else class="badge pending">PENDING</span>
           </div>
         </div>
 
         <div class="card-content">
           <p class="api-note">POST /api/simulation/prepare</p>
           <p class="description">
-            {{ $t('step2.agentPersonaDesc') }}
+            Automatically extract entities from graph and initialize simulated personas.
           </p>
 
-          <!-- Profiles Stats -->
           <div v-if="profiles.length > 0" class="stats-grid">
             <div class="stat-card">
               <span class="stat-value">{{ profiles.length }}</span>
-              <span class="stat-label">{{ $t('step2.currentAgents') }}</span>
+              <span class="stat-label">Current Agents</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{{ expectedTotal || '-' }}</span>
-              <span class="stat-label">{{ $t('step2.expectedAgents') }}</span>
+              <span class="stat-label">Expected Agents</span>
             </div>
             <div class="stat-card">
               <span class="stat-value">{{ totalTopicsCount }}</span>
-              <span class="stat-label">{{ $t('step2.relatedTopics') }}</span>
+              <span class="stat-label">Related Topics</span>
             </div>
           </div>
 
-          <!-- Profiles List Preview -->
           <div v-if="profiles.length > 0" class="profiles-preview">
             <div class="preview-header">
-              <span class="preview-title">{{ $t('step2.generatedPersonas') }}</span>
+              <span class="preview-title">Generated Personas</span>
             </div>
-            <div class="profiles-list">
+            <div class="profiles-list custom-scrollbar">
               <div 
                 v-for="(profile, idx) in profiles" 
                 :key="idx" 
@@ -94,9 +90,9 @@
                   <span class="profile-username">@{{ profile.name || `agent_${idx}` }}</span>
                 </div>
                 <div class="profile-meta">
-                  <span class="profile-profession">{{ profile.profession || $t('step2.unknownProfession') }}</span>
+                  <span class="profile-profession">{{ profile.profession || 'Unknown Profession' }}</span>
                 </div>
-                <p class="profile-bio">{{ profile.bio || $t('step2.noBio') }}</p>
+                <p class="profile-bio">{{ profile.bio || 'No bio available' }}</p>
                 <div v-if="profile.interested_topics?.length" class="profile-topics">
                   <span 
                     v-for="topic in profile.interested_topics.slice(0, 3)" 
@@ -113,85 +109,80 @@
         </div>
       </div>
 
-      <!-- Step 03: Generate Dual-Platform Simulation Config -->
       <div class="step-card" :class="{ 'active': phase === 2, 'completed': phase > 2 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">03</span>
-            <span class="step-title">{{ $t('step2.dualPlatformConfig') }}</span>
+            <span class="step-title">Generate Dual-Platform Config</span>
           </div>
           <div class="step-status">
-            <span v-if="phase > 2" class="badge success">{{ $t('step1.completed') }}</span>
-            <span v-else-if="phase === 2" class="badge processing">{{ $t('step1.generating') }}</span>
-            <span v-else class="badge pending">{{ $t('step1.pending') }}</span>
+            <span v-if="phase > 2" class="badge success">COMPLETED</span>
+            <span v-else-if="phase === 2" class="badge processing">GENERATING</span>
+            <span v-else class="badge pending">PENDING</span>
           </div>
         </div>
 
         <div class="card-content">
           <p class="api-note">POST /api/simulation/prepare</p>
           <p class="description">
-            {{ $t('step2.dualPlatformConfigDesc') }}
+            LLM configures timeflow, algorithms, active hours, and triggers.
           </p>
           
-          <!-- Config Preview -->
           <div v-if="simulationConfig" class="config-detail-panel">
-            <!-- Time configuration -->
             <div class="config-block">
               <div class="config-grid">
                 <div class="config-item">
-                  <span class="config-item-label">{{ $t('step2.simDuration') }}</span>
-                  <span class="config-item-value">{{ simulationConfig.time_config?.total_simulation_hours || '-' }} {{ $t('step2.hours') }}</span>
+                  <span class="config-item-label">Sim Duration</span>
+                  <span class="config-item-value">{{ simulationConfig.time_config?.total_simulation_hours || '-' }} Hours</span>
                 </div>
                 <div class="config-item">
-                  <span class="config-item-label">{{ $t('step2.roundDuration') }}</span>
-                  <span class="config-item-value">{{ simulationConfig.time_config?.minutes_per_round || '-' }} {{ $t('step2.minutes') }}</span>
+                  <span class="config-item-label">Round Length</span>
+                  <span class="config-item-value">{{ simulationConfig.time_config?.minutes_per_round || '-' }} Minutes</span>
                 </div>
                 <div class="config-item">
-                  <span class="config-item-label">{{ $t('step2.totalRounds') }}</span>
-                  <span class="config-item-value">{{ Math.floor((simulationConfig.time_config?.total_simulation_hours * 60 / simulationConfig.time_config?.minutes_per_round)) || '-' }} {{ $t('step2.rounds') }}</span>
+                  <span class="config-item-label">Total Rounds</span>
+                  <span class="config-item-value">{{ Math.floor((simulationConfig.time_config?.total_simulation_hours * 60 / simulationConfig.time_config?.minutes_per_round)) || '-' }} Rounds</span>
                 </div>
                 <div class="config-item">
-                  <span class="config-item-label">{{ $t('step2.activePerHour') }}</span>
+                  <span class="config-item-label">Active / Hr</span>
                   <span class="config-item-value">{{ simulationConfig.time_config?.agents_per_hour_min }}-{{ simulationConfig.time_config?.agents_per_hour_max }}</span>
                 </div>
               </div>
               <div class="time-periods">
                 <div class="period-item">
-                  <span class="period-label">{{ $t('step2.peakHours') }}</span>
+                  <span class="period-label">Peak Hours</span>
                   <span class="period-hours">{{ simulationConfig.time_config?.peak_hours?.join(':00, ') }}:00</span>
                   <span class="period-multiplier">×{{ simulationConfig.time_config?.peak_activity_multiplier }}</span>
                 </div>
                 <div class="period-item">
-                  <span class="period-label">{{ $t('step2.workHours') }}</span>
+                  <span class="period-label">Work Hours</span>
                   <span class="period-hours">{{ simulationConfig.time_config?.work_hours?.[0] }}:00-{{ simulationConfig.time_config?.work_hours?.slice(-1)[0] }}:00</span>
                   <span class="period-multiplier">×{{ simulationConfig.time_config?.work_activity_multiplier }}</span>
                 </div>
                 <div class="period-item">
-                  <span class="period-label">{{ $t('step2.morningHours') }}</span>
+                  <span class="period-label">Morning Hours</span>
                   <span class="period-hours">{{ simulationConfig.time_config?.morning_hours?.[0] }}:00-{{ simulationConfig.time_config?.morning_hours?.slice(-1)[0] }}:00</span>
                   <span class="period-multiplier">×{{ simulationConfig.time_config?.morning_activity_multiplier }}</span>
                 </div>
                 <div class="period-item">
-                  <span class="period-label">{{ $t('step2.offPeakHours') }}</span>
+                  <span class="period-label">Off-Peak Hours</span>
                   <span class="period-hours">{{ simulationConfig.time_config?.off_peak_hours?.[0] }}:00-{{ simulationConfig.time_config?.off_peak_hours?.slice(-1)[0] }}:00</span>
                   <span class="period-multiplier">×{{ simulationConfig.time_config?.off_peak_activity_multiplier }}</span>
                 </div>
               </div>
             </div>
 
-            <!-- Agent configuration -->
             <div class="config-block">
               <div class="config-block-header">
-                <span class="config-block-title">{{ $t('step2.agentConfig') }}</span>
-                <span class="config-block-badge">{{ simulationConfig.agent_configs?.length || 0 }} {{ $t('step2.count') }}</span>
+                <span class="config-block-title">Agent Config</span>
+                <span class="config-block-badge">{{ simulationConfig.agent_configs?.length || 0 }} Count</span>
               </div>
-              <div class="agents-cards">
+              <div class="agents-cards custom-scrollbar">
                 <div 
                   v-for="agent in simulationConfig.agent_configs" 
                   :key="agent.agent_id" 
                   class="agent-card"
                 >
-                  <!-- Card header -->
                   <div class="agent-card-header">
                     <div class="agent-identity">
                       <span class="agent-id">Agent {{ agent.agent_id }}</span>
@@ -203,9 +194,8 @@
                     </div>
                   </div>
                   
-                  <!-- Active hours timeline -->
                   <div class="agent-timeline">
-                    <span class="timeline-label">{{ $t('step2.activeHours') }}</span>
+                    <span class="timeline-label">Active Hours</span>
                     <div class="mini-timeline">
                       <div 
                         v-for="hour in 24" 
@@ -224,38 +214,37 @@
                     </div>
                   </div>
 
-                  <!-- Behavior parameters -->
                   <div class="agent-params">
                     <div class="param-group">
                       <div class="param-item">
-                        <span class="param-label">{{ $t('step2.postsPerHour') }}</span>
+                        <span class="param-label">Posts / Hr</span>
                         <span class="param-value">{{ agent.posts_per_hour }}</span>
                       </div>
                       <div class="param-item">
-                        <span class="param-label">{{ $t('step2.commentsPerHour') }}</span>
+                        <span class="param-label">Comments / Hr</span>
                         <span class="param-value">{{ agent.comments_per_hour }}</span>
                       </div>
                       <div class="param-item">
-                        <span class="param-label">{{ $t('step2.responseDelay') }}</span>
+                        <span class="param-label">Response Delay</span>
                         <span class="param-value">{{ agent.response_delay_min }}-{{ agent.response_delay_max }}min</span>
                       </div>
                     </div>
                     <div class="param-group">
                       <div class="param-item">
-                        <span class="param-label">{{ $t('step2.activityLevel') }}</span>
+                        <span class="param-label">Activity Level</span>
                         <span class="param-value with-bar">
                           <span class="mini-bar" :style="{ width: (agent.activity_level * 100) + '%' }"></span>
                           {{ (agent.activity_level * 100).toFixed(0) }}%
                         </span>
                       </div>
                       <div class="param-item">
-                        <span class="param-label">{{ $t('step2.sentimentBias') }}</span>
+                        <span class="param-label">Sentiment Bias</span>
                         <span class="param-value" :class="agent.sentiment_bias > 0 ? 'positive' : agent.sentiment_bias < 0 ? 'negative' : 'neutral'">
                           {{ agent.sentiment_bias > 0 ? '+' : '' }}{{ agent.sentiment_bias?.toFixed(1) }}
                         </span>
                       </div>
                       <div class="param-item">
-                        <span class="param-label">{{ $t('step2.influence') }}</span>
+                        <span class="param-label">Influence</span>
                         <span class="param-value highlight">{{ agent.influence_weight?.toFixed(1) }}</span>
                       </div>
                     </div>
@@ -264,62 +253,61 @@
               </div>
             </div>
 
-            <!-- Platform configuration -->
             <div class="config-block">
               <div class="config-block-header">
-                <span class="config-block-title">{{ $t('step2.twitterRecAlgo') }}</span>
+                <span class="config-block-title">Platform Config</span>
               </div>
               <div class="platforms-grid">
                 <div v-if="simulationConfig.twitter_config" class="platform-card">
                   <div class="platform-card-header">
-                    <span class="platform-name">{{ $t('step2.platform1Name') }}</span>
+                    <span class="platform-name">Info Plaza (Twitter)</span>
                   </div>
                   <div class="platform-params">
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.recencyWeight') }}</span>
+                      <span class="param-label">Recency Weight</span>
                       <span class="param-value">{{ simulationConfig.twitter_config.recency_weight }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.popularityWeight') }}</span>
+                      <span class="param-label">Popularity Weight</span>
                       <span class="param-value">{{ simulationConfig.twitter_config.popularity_weight }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.relevanceWeight') }}</span>
+                      <span class="param-label">Relevance Weight</span>
                       <span class="param-value">{{ simulationConfig.twitter_config.relevance_weight }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.viralThreshold') }}</span>
+                      <span class="param-label">Viral Threshold</span>
                       <span class="param-value">{{ simulationConfig.twitter_config.viral_threshold }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.echoChamberStrength') }}</span>
+                      <span class="param-label">Echo Chamber</span>
                       <span class="param-value">{{ simulationConfig.twitter_config.echo_chamber_strength }}</span>
                     </div>
                   </div>
                 </div>
                 <div v-if="simulationConfig.reddit_config" class="platform-card">
                   <div class="platform-card-header">
-                    <span class="platform-name">{{ $t('step2.platform2Name') }}</span>
+                    <span class="platform-name">Topic Community (Reddit)</span>
                   </div>
                   <div class="platform-params">
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.recencyWeight') }}</span>
+                      <span class="param-label">Recency Weight</span>
                       <span class="param-value">{{ simulationConfig.reddit_config.recency_weight }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.popularityWeight') }}</span>
+                      <span class="param-label">Popularity Weight</span>
                       <span class="param-value">{{ simulationConfig.reddit_config.popularity_weight }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.relevanceWeight') }}</span>
+                      <span class="param-label">Relevance Weight</span>
                       <span class="param-value">{{ simulationConfig.reddit_config.relevance_weight }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.viralThreshold') }}</span>
+                      <span class="param-label">Viral Threshold</span>
                       <span class="param-value">{{ simulationConfig.reddit_config.viral_threshold }}</span>
                     </div>
                     <div class="param-row">
-                      <span class="param-label">{{ $t('step2.echoChamberStrength') }}</span>
+                      <span class="param-label">Echo Chamber</span>
                       <span class="param-value">{{ simulationConfig.reddit_config.echo_chamber_strength }}</span>
                     </div>
                   </div>
@@ -327,10 +315,9 @@
               </div>
             </div>
 
-            <!-- LLM configuration reasoning -->
             <div v-if="simulationConfig.generation_reasoning" class="config-block">
               <div class="config-block-header">
-                <span class="config-block-title">{{ $t('step2.llmConfigReasoning') }}</span>
+                <span class="config-block-title">LLM Config Reasoning</span>
               </div>
               <div class="reasoning-content">
                 <div 
@@ -346,28 +333,26 @@
         </div>
       </div>
 
-      <!-- Step 04: Initial Activation Orchestration -->
       <div class="step-card" :class="{ 'active': phase === 3, 'completed': phase > 3 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">04</span>
-            <span class="step-title">{{ $t('step2.initialOrchestration') }}</span>
+            <span class="step-title">Initial Orchestration</span>
           </div>
           <div class="step-status">
-            <span v-if="phase > 3" class="badge success">{{ $t('step1.completed') }}</span>
-            <span v-else-if="phase === 3" class="badge processing">{{ $t('step2.orchestrating') }}</span>
-            <span v-else class="badge pending">{{ $t('step1.pending') }}</span>
+            <span v-if="phase > 3" class="badge success">COMPLETED</span>
+            <span v-else-if="phase === 3" class="badge processing">ORCHESTRATING</span>
+            <span v-else class="badge pending">PENDING</span>
           </div>
         </div>
 
         <div class="card-content">
           <p class="api-note">POST /api/simulation/prepare</p>
           <p class="description">
-            {{ $t('step2.orchestrationDesc') }}
+            Weaving narrative directions, initial hot topics, and seed posts.
           </p>
 
           <div v-if="simulationConfig?.event_config" class="orchestration-content">
-            <!-- Narrative direction -->
             <div class="narrative-box">
               <span class="box-label narrative-label">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" class="special-icon">
@@ -375,19 +360,18 @@
                   <path d="M16.24 7.76L14.12 14.12L7.76 16.24L9.88 9.88L16.24 7.76Z" fill="url(#paint0_linear)" stroke="url(#paint0_linear)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                   <defs>
                     <linearGradient id="paint0_linear" x1="2" y1="2" x2="22" y2="22" gradientUnits="userSpaceOnUse">
-                      <stop stop-color="#FF5722"/>
-                      <stop offset="1" stop-color="#FF9800"/>
+                      <stop stop-color="#3B82F6"/>
+                      <stop offset="1" stop-color="#8B5CF6"/>
                     </linearGradient>
                   </defs>
                 </svg>
-                {{ $t('step2.narrativeDirection') }}
+                Narrative Direction
               </span>
               <p class="narrative-text">{{ simulationConfig.event_config.narrative_direction }}</p>
             </div>
 
-            <!-- Hot topics -->
             <div class="topics-section">
-              <span class="box-label">{{ $t('step2.initialHotTopics') }}</span>
+              <span class="box-label">Initial Hot Topics</span>
               <div class="hot-topics-grid">
                 <span v-for="topic in simulationConfig.event_config.hot_topics" :key="topic" class="hot-topic-tag">
                   # {{ topic }}
@@ -395,9 +379,8 @@
               </div>
             </div>
 
-            <!-- Initial posts stream -->
             <div class="initial-posts-section">
-              <span class="box-label">{{ $t('step2.initialActivationSeq') }} ({{ simulationConfig.event_config.initial_posts.length }})</span>
+              <span class="box-label">Initial Activation Sequence ({{ simulationConfig.event_config.initial_posts.length }})</span>
               <div class="posts-timeline">
                 <div v-for="(post, idx) in simulationConfig.event_config.initial_posts" :key="idx" class="timeline-item">
                   <div class="timeline-marker"></div>
@@ -418,34 +401,32 @@
         </div>
       </div>
 
-      <!-- Step 05: Preparation Complete -->
       <div class="step-card" :class="{ 'active': phase === 4 }">
         <div class="card-header">
           <div class="step-info">
             <span class="step-num">05</span>
-            <span class="step-title">{{ $t('step2.readyToStart') }}</span>
+            <span class="step-title">Ready to Start</span>
           </div>
           <div class="step-status">
-            <span v-if="phase >= 4" class="badge processing">{{ $t('step2.inProgress') }}</span>
-            <span v-else class="badge pending">{{ $t('step1.pending') }}</span>
+            <span v-if="phase >= 4" class="badge processing">IN PROGRESS</span>
+            <span v-else class="badge pending">PENDING</span>
           </div>
         </div>
 
         <div class="card-content">
           <p class="api-note">POST /api/simulation/start</p>
-          <p class="description">{{ $t('step2.startSimDesc') }}</p>
+          <p class="description">Configuration complete. Click below to launch dual-platform sim.</p>
           
-          <!-- Simulation rounds config - only shown when config is generated and rounds are calculated -->
           <div v-if="simulationConfig && autoGeneratedRounds" class="rounds-config-section">
             <div class="rounds-header">
               <div class="header-left">
-                <span class="section-title">{{ $t('step2.simRounds') }}</span>
-                <span class="section-desc">{{ $t('step2.simRoundsDesc', { hours: simulationConfig?.time_config?.total_simulation_hours || '-', minutes: simulationConfig?.time_config?.minutes_per_round || '-' }) }}</span>
+                <span class="section-title">Simulation Rounds</span>
+                <span class="section-desc">Duration: {{ simulationConfig?.time_config?.total_simulation_hours || '-' }} hours, {{ simulationConfig?.time_config?.minutes_per_round || '-' }} min per round</span>
               </div>
               <label class="switch-control">
                 <input type="checkbox" v-model="useCustomRounds">
                 <span class="switch-track"></span>
-                <span class="switch-label">{{ $t('step2.customRounds') }}</span>
+                <span class="switch-label">Custom</span>
               </label>
             </div>
             
@@ -454,10 +435,10 @@
                 <div class="slider-display">
                   <div class="slider-main-value">
                     <span class="val-num">{{ customMaxRounds }}</span>
-                    <span class="val-unit">{{ $t('step2.rounds') }}</span>
+                    <span class="val-unit">Rounds</span>
                   </div>
                   <div class="slider-meta-info">
-                    <span>{{ $t('step2.estimatedTime', { minutes: Math.round(customMaxRounds * 0.6) }) }}</span>
+                    <span>Estimated: {{ Math.round(customMaxRounds * 0.6) }} minutes</span>
                   </div>
                 </div>
 
@@ -478,7 +459,7 @@
                       :class="{ active: customMaxRounds === 40 }"
                       @click="customMaxRounds = 40"
                       :style="{ position: 'absolute', left: `calc(${(40 - 1) / (autoGeneratedRounds - 1) * 100}% - 30px)` }"
-                    >40 ({{ $t('step2.recommended') }})</span>
+                    >40 (Recommended)</span>
                     <span>{{ autoGeneratedRounds }}</span>
                   </div>
                 </div>
@@ -488,7 +469,7 @@
                 <div class="auto-info-card">
                   <div class="auto-value">
                     <span class="val-num">{{ autoGeneratedRounds }}</span>
-                    <span class="val-unit">{{ $t('step2.rounds') }}</span>
+                    <span class="val-unit">Rounds</span>
                   </div>
                   <div class="auto-content">
                     <div class="auto-meta-row">
@@ -497,11 +478,11 @@
                           <circle cx="12" cy="12" r="10"></circle>
                           <polyline points="12 6 12 12 16 14"></polyline>
                         </svg>
-                        {{ $t('step2.estimatedTimeAuto', { minutes: Math.round(autoGeneratedRounds * 0.6) }) }}
+                        Estimated: {{ Math.round(autoGeneratedRounds * 0.6) }} minutes
                       </span>
                     </div>
                     <div class="auto-desc">
-                      <p class="highlight-tip" @click="useCustomRounds = true">{{ $t('step2.firstRunTip') }} ➝</p>
+                      <p class="highlight-tip" @click="useCustomRounds = true">First run? Try a quick 40-round preview ➝</p>
                     </div>
                   </div>
                 </div>
@@ -514,116 +495,114 @@
               class="action-btn secondary"
               @click="$emit('go-back')"
             >
-              ← {{ $t('step2.backToGraph') }}
+              ← Back to Graph
             </button>
             <button 
               class="action-btn primary"
               :disabled="phase < 4"
               @click="handleStartSimulation"
             >
-              {{ $t('step2.startDualSim') }} ➝
+              Start Dual-Platform Sim ➝
             </button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Profile Detail Modal -->
     <Transition name="modal">
       <div v-if="selectedProfile" class="profile-modal-overlay" @click.self="selectedProfile = null">
         <div class="profile-modal">
           <div class="modal-header">
-          <div class="modal-header-info">
-            <div class="modal-name-row">
-              <span class="modal-realname">{{ selectedProfile.username }}</span>
-              <span class="modal-username">@{{ selectedProfile.name }}</span>
+            <div class="modal-header-info">
+              <div class="modal-name-row">
+                <span class="modal-realname">{{ selectedProfile.username }}</span>
+                <span class="modal-username">@{{ selectedProfile.name }}</span>
+              </div>
+              <span class="modal-profession">{{ selectedProfile.profession }}</span>
             </div>
-            <span class="modal-profession">{{ selectedProfile.profession }}</span>
+            <button class="close-btn" @click="selectedProfile = null">
+              <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
           </div>
-          <button class="close-btn" @click="selectedProfile = null">×</button>
-        </div>
         
-        <div class="modal-body">
-          <!-- Basic information -->
-          <div class="modal-info-grid">
-            <div class="info-item">
-              <span class="info-label">{{ $t('step2.profileAge') }}</span>
-              <span class="info-value">{{ selectedProfile.age || '-' }} {{ $t('step2.yearsOld') }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('step2.profileGender') }}</span>
-              <span class="info-value">{{ { male: $t('step2.genderMale'), female: $t('step2.genderFemale'), other: $t('step2.genderOther') }[selectedProfile.gender] || selectedProfile.gender }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('step2.profileCountry') }}</span>
-              <span class="info-value">{{ selectedProfile.country || '-' }}</span>
-            </div>
-            <div class="info-item">
-              <span class="info-label">{{ $t('step2.profileMBTI') }}</span>
-              <span class="info-value mbti">{{ selectedProfile.mbti || '-' }}</span>
-            </div>
-          </div>
-
-          <!-- Bio -->
-          <div class="modal-section">
-            <span class="section-label">{{ $t('step2.personaBio') }}</span>
-            <p class="section-bio">{{ selectedProfile.bio || $t('step2.noBio') }}</p>
-          </div>
-
-          <!-- Interested topics -->
-          <div class="modal-section" v-if="selectedProfile.interested_topics?.length">
-            <span class="section-label">{{ $t('step2.seedRelatedTopics') }}</span>
-            <div class="topics-grid">
-              <span 
-                v-for="topic in selectedProfile.interested_topics" 
-                :key="topic" 
-                class="topic-item"
-              >{{ topic }}</span>
-            </div>
-          </div>
-
-          <!-- Detailed persona -->
-          <div class="modal-section" v-if="selectedProfile.persona">
-            <span class="section-label">{{ $t('step2.detailedPersona') }}</span>
-            
-            <!-- Persona dimension overview -->
-            <div class="persona-dimensions">
-              <div class="dimension-card">
-                <span class="dim-title">{{ $t('step2.dimEventExperience') }}</span>
-                <span class="dim-desc">{{ $t('step2.dimEventExperienceDesc') }}</span>
+          <div class="modal-body custom-scrollbar">
+            <div class="modal-info-grid">
+              <div class="info-item">
+                <span class="info-label">Age</span>
+                <span class="info-value">{{ selectedProfile.age || '-' }} yo</span>
               </div>
-              <div class="dimension-card">
-                <span class="dim-title">{{ $t('step2.dimBehaviorProfile') }}</span>
-                <span class="dim-desc">{{ $t('step2.dimBehaviorProfileDesc') }}</span>
+              <div class="info-item">
+                <span class="info-label">Gender</span>
+                <span class="info-value">{{ { male: 'M', female: 'F', other: 'Other' }[selectedProfile.gender?.toLowerCase()] || selectedProfile.gender }}</span>
               </div>
-              <div class="dimension-card">
-                <span class="dim-title">{{ $t('step2.dimMemoryImprint') }}</span>
-                <span class="dim-desc">{{ $t('step2.dimMemoryImprintDesc') }}</span>
+              <div class="info-item">
+                <span class="info-label">Country</span>
+                <span class="info-value">{{ selectedProfile.country || '-' }}</span>
               </div>
-              <div class="dimension-card">
-                <span class="dim-title">{{ $t('step2.dimSocialNetwork') }}</span>
-                <span class="dim-desc">{{ $t('step2.dimSocialNetworkDesc') }}</span>
+              <div class="info-item">
+                <span class="info-label">MBTI</span>
+                <span class="info-value mbti">{{ selectedProfile.mbti || '-' }}</span>
               </div>
             </div>
 
-            <div class="persona-content">
-              <p class="section-persona">{{ selectedProfile.persona }}</p>
+            <div class="modal-section">
+              <span class="section-label">Persona Bio</span>
+              <p class="section-bio">{{ selectedProfile.bio || 'No bio available' }}</p>
+            </div>
+
+            <div class="modal-section" v-if="selectedProfile.interested_topics?.length">
+              <span class="section-label">Seed Related Topics</span>
+              <div class="topics-grid">
+                <span 
+                  v-for="topic in selectedProfile.interested_topics" 
+                  :key="topic" 
+                  class="topic-item"
+                >{{ topic }}</span>
+              </div>
+            </div>
+
+            <div class="modal-section" v-if="selectedProfile.persona">
+              <span class="section-label">Detailed Persona</span>
+              
+              <div class="persona-dimensions">
+                <div class="dimension-card">
+                  <span class="dim-title">Event Experience</span>
+                  <span class="dim-desc">Key experiences and their behavioral impact</span>
+                </div>
+                <div class="dimension-card">
+                  <span class="dim-title">Behavioral Profile</span>
+                  <span class="dim-desc">Typical patterns, communication styles, and biases</span>
+                </div>
+                <div class="dimension-card">
+                  <span class="dim-title">Memory Imprint</span>
+                  <span class="dim-desc">Core memories shaping the worldview</span>
+                </div>
+                <div class="dimension-card">
+                  <span class="dim-title">Social Network</span>
+                  <span class="dim-desc">Key relationships and influences</span>
+                </div>
+              </div>
+
+              <div class="persona-content">
+                <p class="section-persona">{{ selectedProfile.persona }}</p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
       </div>
     </Transition>
 
-    <!-- Bottom Info / Logs -->
     <div class="system-logs">
       <div class="log-header">
-        <span class="log-title">SYSTEM DASHBOARD</span>
+        <div class="log-title-group">
+          <div class="status-dot pulsing"></div>
+          <span class="log-title">SYSTEM DASHBOARD</span>
+        </div>
         <span class="log-id">{{ simulationId || 'NO_SIMULATION' }}</span>
       </div>
-      <div class="log-content" ref="logContent">
+      <div class="log-content custom-scrollbar" ref="logContent">
         <div class="log-line" v-for="(log, idx) in systemLogs" :key="idx">
-          <span class="log-time">{{ log.time }}</span>
+          <span class="log-time">[{{ log.time }}]</span>
           <span class="log-msg">{{ log.msg }}</span>
         </div>
       </div>
@@ -633,19 +612,15 @@
 
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
-import { useI18n } from 'vue-i18n'
 import {
   prepareSimulation,
   getPrepareStatus,
   getSimulationProfilesRealtime,
-  getSimulationConfig,
   getSimulationConfigRealtime
 } from '../api/simulation'
 
-const { t } = useI18n()
-
 const props = defineProps({
-  simulationId: String,  // Passed from parent component
+  simulationId: String,
   simulationData: Object,
   projectData: Object,
   graphData: Object,
@@ -655,7 +630,7 @@ const props = defineProps({
 const emit = defineEmits(['go-back', 'next-step', 'add-log', 'update-status'])
 
 // State
-const phase = ref(0) // 0: initialization, 1: generating personas, 2: generating config, 3: complete
+const phase = ref(0)
 const taskId = ref(null)
 const prepareProgress = ref(0)
 const currentStage = ref('')
@@ -667,60 +642,45 @@ const simulationConfig = ref(null)
 const selectedProfile = ref(null)
 const showProfilesDetail = ref(true)
 
-// Log deduplication: record last logged key info
 let lastLoggedMessage = ''
 let lastLoggedProfileCount = 0
 let lastLoggedConfigStage = ''
 
-// Simulation rounds configuration
-const useCustomRounds = ref(false) // Default to auto-configured rounds
-const customMaxRounds = ref(40)   // Default recommended 40 rounds
+const useCustomRounds = ref(false)
+const customMaxRounds = ref(40)
 
-// Watch stage to update phase
 watch(currentStage, (newStage) => {
   if (newStage === '生成Agent人设' || newStage === 'generating_profiles') {
     phase.value = 1
   } else if (newStage === '生成模拟配置' || newStage === 'generating_config') {
     phase.value = 2
-    // Enter config generation phase, start polling config
     if (!configTimer) {
-      addLog(t('step2.log.startGenConfig'))
+      addLog('Starting config generation...')
       startConfigPolling()
     }
   } else if (newStage === '准备模拟脚本' || newStage === 'copying_scripts') {
-    phase.value = 2 // Still in config phase
+    phase.value = 2
   }
 })
 
-// Calculate auto-generated rounds from config (no hardcoded defaults)
 const autoGeneratedRounds = computed(() => {
-  if (!simulationConfig.value?.time_config) {
-    return null // Return null when config is not yet generated
-  }
+  if (!simulationConfig.value?.time_config) return null
   const totalHours = simulationConfig.value.time_config.total_simulation_hours
   const minutesPerRound = simulationConfig.value.time_config.minutes_per_round
-  if (!totalHours || !minutesPerRound) {
-    return null // Return null when config data is incomplete
-  }
+  if (!totalHours || !minutesPerRound) return null
   const calculatedRounds = Math.floor((totalHours * 60) / minutesPerRound)
-  // Ensure max rounds is at least 40 (recommended value) to avoid slider range issues
   return Math.max(calculatedRounds, 40)
 })
 
-// Polling timer
 let pollTimer = null
 let profilesTimer = null
 let configTimer = null
 
-// Computed
 const displayProfiles = computed(() => {
-  if (showProfilesDetail.value) {
-    return profiles.value
-  }
+  if (showProfilesDetail.value) return profiles.value
   return profiles.value.slice(0, 6)
 })
 
-// Get username by agent_id
 const getAgentUsername = (agentId) => {
   if (profiles.value && profiles.value.length > agentId && agentId >= 0) {
     const profile = profiles.value[agentId]
@@ -729,58 +689,39 @@ const getAgentUsername = (agentId) => {
   return `agent_${agentId}`
 }
 
-// Calculate total topic count across all personas
 const totalTopicsCount = computed(() => {
-  return profiles.value.reduce((sum, p) => {
-    return sum + (p.interested_topics?.length || 0)
-  }, 0)
+  return profiles.value.reduce((sum, p) => sum + (p.interested_topics?.length || 0), 0)
 })
 
-// Methods
 const addLog = (msg) => {
   emit('add-log', msg)
 }
 
-// Handle start simulation button click
 const handleStartSimulation = () => {
-  // Build parameters to pass to parent component
   const params = {}
-  
   if (useCustomRounds.value) {
-    // User custom rounds, pass max_rounds parameter
     params.maxRounds = customMaxRounds.value
-    addLog(t('step2.log.startSimCustom', { rounds: customMaxRounds.value }))
+    addLog('Starting simulation with custom rounds: ' + customMaxRounds.value)
   } else {
-    // User chose to keep auto-generated rounds, do not pass max_rounds parameter
-    addLog(t('step2.log.startSimAuto', { rounds: autoGeneratedRounds.value }))
+    addLog('Starting simulation with auto rounds: ' + autoGeneratedRounds.value)
   }
-  
   emit('next-step', params)
-}
-
-const truncateBio = (bio) => {
-  if (bio.length > 80) {
-    return bio.substring(0, 80) + '...'
-  }
-  return bio
 }
 
 const selectProfile = (profile) => {
   selectedProfile.value = profile
 }
 
-// Auto-start simulation preparation
 const startPrepareSimulation = async () => {
   if (!props.simulationId) {
-    addLog(t('step2.log.missingSimId'))
+    addLog('Error: Missing Simulation ID')
     emit('update-status', 'error')
     return
   }
   
-  // Mark first step complete, start second step
   phase.value = 1
-  addLog(t('step2.log.simCreated', { id: props.simulationId }))
-  addLog(t('step2.log.preparingEnv'))
+  addLog('Simulation instance created: ' + props.simulationId)
+  addLog('Preparing simulation environment...')
   if (props.simulationData?.discover_related_entities) {
     addLog('LLM related-entity discovery is enabled (max 5 extra entities).')
   }
@@ -803,82 +744,52 @@ const startPrepareSimulation = async () => {
     
     if (res.success && res.data) {
       if (res.data.already_prepared) {
-        addLog(t('step2.log.alreadyPrepared'))
+        addLog('Environment prepared, loading existing data...')
         await loadPreparedData()
         return
       }
       
       taskId.value = res.data.task_id
-      addLog(t('step2.log.taskStarted'))
+      addLog('Preparation task started')
       addLog(`  └─ Task ID: ${res.data.task_id}`)
       
-      // Set expected total agent count immediately (from prepare API response)
       if (res.data.expected_entities_count) {
         expectedTotal.value = res.data.expected_entities_count
-        addLog(t('step2.log.entitiesFound', { count: res.data.expected_entities_count }))
+        addLog('Found ' + res.data.expected_entities_count + ' entities to generate')
         if (res.data.entity_types && res.data.entity_types.length > 0) {
-          addLog(`  └─ ${t('step2.log.entityTypes')}: ${res.data.entity_types.join(', ')}`)
+          addLog(`  └─ Entity Types: ${res.data.entity_types.join(', ')}`)
         }
       }
       
-      addLog(t('step2.log.startPolling'))
-      // Start polling progress
+      addLog('Polling for progress...')
       startPolling()
-      // Start real-time profile fetching
       startProfilesPolling()
     } else {
-      addLog(t('step2.log.prepareFailed', { error: res.error || t('step2.log.unknownError') }))
+      addLog('Preparation failed: ' + (res.error || 'Unknown error'))
       emit('update-status', 'error')
     }
   } catch (err) {
-    addLog(t('step2.log.prepareException', { error: err.message }))
+    addLog('Preparation exception: ' + err.message)
     emit('update-status', 'error')
   }
 }
 
-const startPolling = () => {
-  pollTimer = setInterval(pollPrepareStatus, 2000)
-}
-
-const stopPolling = () => {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
-  }
-}
-
-const startProfilesPolling = () => {
-  profilesTimer = setInterval(fetchProfilesRealtime, 3000)
-}
-
-const stopProfilesPolling = () => {
-  if (profilesTimer) {
-    clearInterval(profilesTimer)
-    profilesTimer = null
-  }
-}
+const startPolling = () => { pollTimer = setInterval(pollPrepareStatus, 2000) }
+const stopPolling = () => { if (pollTimer) { clearInterval(pollTimer); pollTimer = null } }
+const startProfilesPolling = () => { profilesTimer = setInterval(fetchProfilesRealtime, 3000) }
+const stopProfilesPolling = () => { if (profilesTimer) { clearInterval(profilesTimer); profilesTimer = null } }
 
 const pollPrepareStatus = async () => {
   if (!taskId.value && !props.simulationId) return
-  
   try {
-    const res = await getPrepareStatus({
-      task_id: taskId.value,
-      simulation_id: props.simulationId
-    })
-    
+    const res = await getPrepareStatus({ task_id: taskId.value, simulation_id: props.simulationId })
     if (res.success && res.data) {
       const data = res.data
-      
-      // Update progress
       prepareProgress.value = data.progress || 0
       progressMessage.value = data.message || ''
       
-      // Parse stage info and output detailed logs
       if (data.progress_detail) {
         currentStage.value = data.progress_detail.current_stage_name || ''
-        
-        // Output detailed progress logs (avoid duplicates)
         const detail = data.progress_detail
         const logKey = `${detail.current_stage}-${detail.current_item}-${detail.total_items}`
         if (logKey !== lastLoggedMessage && detail.item_description) {
@@ -891,26 +802,21 @@ const pollPrepareStatus = async () => {
           }
         }
       } else if (data.message) {
-        // Extract stage from message
         const match = data.message.match(/\[(\d+)\/(\d+)\]\s*([^:]+)/)
-        if (match) {
-          currentStage.value = match[3].trim()
-        }
-        // Output message logs (avoid duplicates)
+        if (match) currentStage.value = match[3].trim()
         if (data.message !== lastLoggedMessage) {
           lastLoggedMessage = data.message
           addLog(data.message)
         }
       }
       
-      // Check if completed
       if (data.status === 'completed' || data.status === 'ready' || data.already_prepared) {
-        addLog(t('step2.log.prepareComplete'))
+        addLog('Environment preparation complete')
         stopPolling()
         stopProfilesPolling()
         await loadPreparedData()
       } else if (data.status === 'failed') {
-        addLog(`✗ ${t('step2.log.prepareFailed', { error: data.error || t('step2.log.unknownError') })}`)
+        addLog(`✗ Preparation failed: ${data.error || 'Unknown error'}`)
         stopPolling()
         stopProfilesPolling()
       }
@@ -922,40 +828,27 @@ const pollPrepareStatus = async () => {
 
 const fetchProfilesRealtime = async () => {
   if (!props.simulationId) return
-  
   try {
     const res = await getSimulationProfilesRealtime(props.simulationId, 'reddit')
-    
     if (res.success && res.data) {
-      const prevCount = profiles.value.length
       profiles.value = res.data.profiles || []
-      // Only update when API returns valid values, avoid overwriting existing valid values
-      if (res.data.total_expected) {
-        expectedTotal.value = res.data.total_expected
-      }
+      if (res.data.total_expected) expectedTotal.value = res.data.total_expected
       
-      // Extract entity types
       const types = new Set()
-      profiles.value.forEach(p => {
-        if (p.entity_type) types.add(p.entity_type)
-      })
+      profiles.value.forEach(p => { if (p.entity_type) types.add(p.entity_type) })
       entityTypes.value = Array.from(types)
       
-      // Output profile generation progress logs (only when count changes)
       const currentCount = profiles.value.length
       if (currentCount > 0 && currentCount !== lastLoggedProfileCount) {
         lastLoggedProfileCount = currentCount
         const total = expectedTotal.value || '?'
         const latestProfile = profiles.value[currentCount - 1]
         const profileName = latestProfile?.name || latestProfile?.username || `Agent_${currentCount}`
-        if (currentCount === 1) {
-          addLog(t('step2.log.startGenProfiles'))
-        }
-        addLog(`→ ${t('step2.log.profileProgress', { current: currentCount, total, name: profileName, profession: latestProfile?.profession || t('step2.unknownProfession') })}`)
+        if (currentCount === 1) addLog('Starting Agent Persona generation...')
+        addLog(`→ [${currentCount}/${total}] Generated: ${profileName} - ${latestProfile?.profession || 'Unknown Profession'}`)
         
-        // If all generation is complete
         if (expectedTotal.value && currentCount >= expectedTotal.value) {
-          addLog(t('step2.log.allProfilesDone', { count: currentCount }))
+          addLog(`All ${currentCount} Agent Personas generated`)
         }
       }
     }
@@ -964,66 +857,49 @@ const fetchProfilesRealtime = async () => {
   }
 }
 
-// Config polling
-const startConfigPolling = () => {
-  configTimer = setInterval(fetchConfigRealtime, 2000)
-}
-
-const stopConfigPolling = () => {
-  if (configTimer) {
-    clearInterval(configTimer)
-    configTimer = null
-  }
-}
+const startConfigPolling = () => { configTimer = setInterval(fetchConfigRealtime, 2000) }
+const stopConfigPolling = () => { if (configTimer) { clearInterval(configTimer); configTimer = null } }
 
 const fetchConfigRealtime = async () => {
   if (!props.simulationId) return
-  
   try {
     const res = await getSimulationConfigRealtime(props.simulationId)
-    
     if (res.success && res.data) {
       const data = res.data
-      
-      // Output config generation stage logs (avoid duplicates)
       if (data.generation_stage && data.generation_stage !== lastLoggedConfigStage) {
         lastLoggedConfigStage = data.generation_stage
         if (data.generation_stage === 'generating_profiles') {
-          addLog(t('step2.log.genProfileConfig'))
+          addLog('Generating Agent configs...')
         } else if (data.generation_stage === 'generating_config') {
-          addLog(t('step2.log.genSimConfig'))
+          addLog('Generating World configs...')
         }
       }
       
-      // If config has been generated
       if (data.config_generated && data.config) {
         simulationConfig.value = data.config
-        addLog(t('step2.log.configGenComplete'))
+        addLog('Simulation configs complete')
 
-        // Display detailed config summary
         if (data.summary) {
-          addLog(`  ├─ ${t('step2.log.agentCount')}: ${data.summary.total_agents}`)
-          addLog(`  ├─ ${t('step2.log.simDuration')}: ${data.summary.simulation_hours}${t('step2.hours')}`)
-          addLog(`  ├─ ${t('step2.log.initialPosts')}: ${data.summary.initial_posts_count}`)
-          addLog(`  ├─ ${t('step2.log.hotTopics')}: ${data.summary.hot_topics_count}`)
-          addLog(`  └─ ${t('step2.log.platformConfig')}: Twitter ${data.summary.has_twitter_config ? '✓' : '✗'}, Reddit ${data.summary.has_reddit_config ? '✓' : '✗'}`)
+          addLog(`  ├─ Agent Count: ${data.summary.total_agents}`)
+          addLog(`  ├─ Simulation Duration: ${data.summary.simulation_hours} Hours`)
+          addLog(`  ├─ Initial Posts: ${data.summary.initial_posts_count}`)
+          addLog(`  ├─ Hot Topics: ${data.summary.hot_topics_count}`)
+          addLog(`  └─ Platform Config: Twitter ${data.summary.has_twitter_config ? '✓' : '✗'}, Reddit ${data.summary.has_reddit_config ? '✓' : '✗'}`)
         }
 
-        // Display time configuration details
         if (data.config.time_config) {
           const tc = data.config.time_config
-          addLog(t('step2.log.timeConfig', { minutes: tc.minutes_per_round, rounds: Math.floor((tc.total_simulation_hours * 60) / tc.minutes_per_round) }))
+          addLog(`Time Config: ${tc.minutes_per_round} min/round, ${Math.floor((tc.total_simulation_hours * 60) / tc.minutes_per_round)} rounds total`)
         }
 
-        // Display event configuration
         if (data.config.event_config?.narrative_direction) {
           const narrative = data.config.event_config.narrative_direction
-          addLog(`${t('step2.log.narrativeDir')}: ${narrative.length > 50 ? narrative.substring(0, 50) + '...' : narrative}`)
+          addLog(`Narrative Direction: ${narrative.length > 50 ? narrative.substring(0, 50) + '...' : narrative}`)
         }
 
         stopConfigPolling()
         phase.value = 4
-        addLog(t('step2.log.envSetupComplete'))
+        addLog('Environment setup complete, ready to launch')
         emit('update-status', 'completed')
       }
     }
@@ -1034,43 +910,38 @@ const fetchConfigRealtime = async () => {
 
 const loadPreparedData = async () => {
   phase.value = 2
-  addLog(t('step2.log.loadingConfig'))
+  addLog('Loading simulation configs...')
 
-  // Final fetch of profiles
   await fetchProfilesRealtime()
-  addLog(t('step2.log.profilesLoaded', { count: profiles.value.length }))
+  addLog(`Loaded ${profiles.value.length} Agent personas`)
 
-  // Get config (using real-time API)
   try {
     const res = await getSimulationConfigRealtime(props.simulationId)
     if (res.success && res.data) {
       if (res.data.config_generated && res.data.config) {
         simulationConfig.value = res.data.config
-        addLog(t('step2.log.configLoadSuccess'))
+        addLog('Configs loaded successfully')
 
-        // Display detailed config summary
         if (res.data.summary) {
-          addLog(`  ├─ ${t('step2.log.agentCount')}: ${res.data.summary.total_agents}`)
-          addLog(`  ├─ ${t('step2.log.simDuration')}: ${res.data.summary.simulation_hours}${t('step2.hours')}`)
-          addLog(`  └─ ${t('step2.log.initialPosts')}: ${res.data.summary.initial_posts_count}`)
+          addLog(`  ├─ Agent Count: ${res.data.summary.total_agents}`)
+          addLog(`  ├─ Simulation Duration: ${res.data.summary.simulation_hours} Hours`)
+          addLog(`  └─ Initial Posts: ${res.data.summary.initial_posts_count}`)
         }
 
-        addLog(t('step2.log.envSetupComplete'))
+        addLog('Environment setup complete, ready to launch')
         phase.value = 4
         emit('update-status', 'completed')
       } else {
-        // Config not yet generated, start polling
-        addLog(t('step2.log.configPolling'))
+        addLog('Configs not ready, polling...')
         startConfigPolling()
       }
     }
   } catch (err) {
-    addLog(t('step2.log.configLoadFailed', { error: err.message }))
+    addLog(`Config load failed: ${err.message}`)
     emit('update-status', 'error')
   }
 }
 
-// Scroll log to bottom
 const logContent = ref(null)
 watch(() => props.systemLogs?.length, () => {
   nextTick(() => {
@@ -1081,9 +952,8 @@ watch(() => props.systemLogs?.length, () => {
 })
 
 onMounted(() => {
-  // Auto-start preparation workflow
   if (props.simulationId) {
-    addLog(t('step2.log.step2Init'))
+    addLog('Step 2 Initialization')
     startPrepareSimulation()
   }
 })
@@ -1096,1522 +966,552 @@ onUnmounted(() => {
 </script>
 
 <style scoped>
-.env-setup-panel {
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
+.workbench-panel {
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --bg-main: #F8FAFC;
+  --bg-card: #FFFFFF;
+  --text-main: #0F172A;
+  --text-muted: #64748B;
+  --border-light: #E2E8F0;
+  --border-focus: #CBD5E1;
+  --radius-lg: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.02);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.05);
+  --shadow-glow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+  --terminal-bg: #020617;
+  
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #FAFAFA;
-  font-family: 'Space Grotesk', 'Noto Sans SC', system-ui, sans-serif;
+  background: var(--bg-main);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  overflow: hidden;
 }
 
 .scroll-container {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
+  padding: 24px 32px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
+
+/* Custom Scrollbar */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 10px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 
 /* Step Card */
 .step-card {
-  background: #FFF;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-  border: 1px solid #EAEAEA;
-  transition: all 0.3s ease;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-light);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
 }
 
 .step-card.active {
-  border-color: #FF5722;
-  box-shadow: 0 4px 12px rgba(255, 87, 34, 0.08);
+  border-color: var(--primary);
+  box-shadow: var(--shadow-glow), var(--shadow-md);
+}
+
+.step-card.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 24px;
+  bottom: 24px;
+  width: 4px;
+  background: var(--primary);
+  border-radius: 0 4px 4px 0;
 }
 
 .card-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
 }
 
 .step-info {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .step-num {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 20px;
-  font-weight: 700;
-  color: #E0E0E0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #E2E8F0;
+  line-height: 1;
 }
 
-.step-card.active .step-num,
-.step-card.completed .step-num {
-  color: #000;
-}
+.step-card.active .step-num { color: var(--primary); }
+.step-card.completed .step-num { color: #10B981; }
 
 .step-title {
-  font-weight: 600;
-  font-size: 14px;
-  letter-spacing: 0.5px;
+  font-weight: 800;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--text-main);
 }
 
 .badge {
   font-size: 10px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-weight: 800;
   text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
-.badge.success { background: #E8F5E9; color: #2E7D32; }
-.badge.processing { background: #FF5722; color: #FFF; }
-.badge.pending { background: #F5F5F5; color: #999; }
-.badge.accent { background: #E3F2FD; color: #1565C0; }
+.badge.success { background: #D1FAE5; color: #059669; }
+.badge.processing { background: #DBEAFE; color: #1D4ED8; animation: pulse-opacity 2s infinite; }
+.badge.pending { background: #F1F5F9; color: #64748B; }
+.badge.accent { background: var(--primary); color: #FFF; }
 
-.card-content {
-  /* No extra padding - uses step-card's padding */
+@keyframes pulse-opacity {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 .api-note {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: #999;
-  margin-bottom: 8px;
+  font-size: 11px;
+  color: #64748B;
+  background: #F8FAFC;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+  display: inline-block;
+  margin-bottom: 12px;
 }
 
 .description {
-  font-size: 12px;
-  color: #666;
-  line-height: 1.5;
-  margin-bottom: 16px;
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 20px;
 }
 
 /* Action Section */
-.action-section {
-  margin-top: 16px;
-}
-
 .action-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
-  font-size: 14px;
-  font-weight: 600;
+  padding: 16px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
 }
 
-.action-btn.primary {
-  background: #000;
-  color: #FFF;
-}
-
-.action-btn.primary:hover:not(:disabled) {
-  opacity: 0.8;
-}
-
-.action-btn.secondary {
-  background: #F5F5F5;
-  color: #333;
-}
-
-.action-btn.secondary:hover:not(:disabled) {
-  background: #E5E5E5;
-}
-
-.action-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.action-group {
-  display: flex;
-  gap: 12px;
-  margin-top: 16px;
-}
+.action-btn.primary { background: #0F172A; color: #FFF; }
+.action-btn.primary:hover:not(:disabled) { background: #1E293B; transform: translateY(-2px); box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2); }
+.action-btn.secondary { background: #F1F5F9; color: #334155; box-shadow: none; border: 1px solid #E2E8F0; }
+.action-btn.secondary:hover:not(:disabled) { background: #E2E8F0; }
+.action-btn:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
 .action-group.dual {
   display: grid;
   grid-template-columns: 1fr 1fr;
-}
-
-.action-group.dual .action-btn {
-  width: 100%;
+  gap: 16px;
+  margin-top: 24px;
 }
 
 /* Info Card */
 .info-card {
-  background: #F5F5F5;
-  border-radius: 6px;
-  padding: 16px;
+  background: #F8FAFC;
+  border-radius: var(--radius-md);
+  padding: 20px;
   margin-top: 16px;
+  border: 1px solid var(--border-light);
 }
 
 .info-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
-  border-bottom: 1px dashed #E0E0E0;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border-focus);
 }
+.info-row:last-child { border-bottom: none; padding-bottom: 0; }
+.info-row:first-child { padding-top: 0; }
 
-.info-row:last-child {
-  border-bottom: none;
-}
-
-.info-label {
-  font-size: 12px;
-  color: #666;
-}
-
-.info-value {
-  font-size: 13px;
-  font-weight: 500;
-}
-
-.info-value.mono {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-}
+.info-label { font-size: 12px; font-weight: 600; color: #64748B; }
+.info-value { font-size: 13px; font-weight: 600; color: #0F172A; }
+.info-value.mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
 
 /* Stats Grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
-  background: #F9F9F9;
-  padding: 16px;
-  border-radius: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
 }
 
 .stat-card {
+  background: #F8FAFC;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-light);
   text-align: center;
 }
 
 .stat-value {
   display: block;
-  font-size: 20px;
-  font-weight: 700;
-  color: #000;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-main);
   font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+  margin-bottom: 6px;
 }
 
 .stat-label {
-  font-size: 9px;
-  color: #999;
+  font-size: 10px;
+  color: #64748B;
   text-transform: uppercase;
-  margin-top: 4px;
-  display: block;
+  font-weight: 800;
+  letter-spacing: 0.05em;
 }
 
 /* Profiles Preview */
-.profiles-preview {
-  margin-top: 20px;
-  border-top: 1px solid #E5E5E5;
-  padding-top: 16px;
-}
-
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.preview-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+.profiles-preview { margin-top: 24px; border-top: 1px solid #E2E8F0; padding-top: 24px; }
+.preview-header { margin-bottom: 16px; }
+.preview-title { font-size: 13px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.05em; }
 
 .profiles-list {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  max-height: 320px;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.profiles-list::-webkit-scrollbar {
-  width: 4px;
-}
-
-.profiles-list::-webkit-scrollbar-thumb {
-  background: #DDD;
-  border-radius: 2px;
-}
-
-.profiles-list::-webkit-scrollbar-thumb:hover {
-  background: #CCC;
-}
-
-.profile-card {
-  background: #FAFAFA;
-  border: 1px solid #E5E5E5;
-  border-radius: 6px;
-  padding: 14px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.profile-card:hover {
-  border-color: #999;
-  background: #FFF;
-}
-
-.profile-header {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 6px;
-}
-
-.profile-realname {
-  font-size: 14px;
-  font-weight: 700;
-  color: #000;
-}
-
-.profile-username {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: #999;
-}
-
-.profile-meta {
-  margin-bottom: 8px;
-}
-
-.profile-profession {
-  font-size: 11px;
-  color: #666;
-  background: #F0F0F0;
-  padding: 2px 8px;
-  border-radius: 3px;
-}
-
-.profile-bio {
-  font-size: 12px;
-  color: #444;
-  line-height: 1.6;
-  margin: 0 0 10px 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-.profile-topics {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.topic-tag {
-  font-size: 10px;
-  color: #1565C0;
-  background: #E3F2FD;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.topic-more {
-  font-size: 10px;
-  color: #999;
-  padding: 2px 6px;
-}
-
-/* Config Preview */
-/* Config Detail Panel */
-.config-detail-panel {
-  margin-top: 16px;
-}
-
-.config-block {
-  margin-top: 16px;
-  border-top: 1px solid #E5E5E5;
-  padding-top: 12px;
-}
-
-.config-block:first-child {
-  margin-top: 0;
-  border-top: none;
-  padding-top: 0;
-}
-
-.config-block-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.config-block-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.config-block-badge {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  background: #F1F5F9;
-  color: #475569;
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-/* Config Grid */
-.config-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.config-item {
-  background: #F9F9F9;
-  padding: 12px 14px;
-  border-radius: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.config-item-label {
-  font-size: 11px;
-  color: #94A3B8;
-}
-
-.config-item-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 16px;
-  font-weight: 600;
-  color: #1E293B;
-}
-
-/* Time Periods */
-.time-periods {
-  margin-top: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.period-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 12px;
-  background: #F9F9F9;
-  border-radius: 6px;
-}
-
-.period-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #64748B;
-  min-width: 70px;
-}
-
-.period-hours {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: #475569;
-  flex: 1;
-}
-
-.period-multiplier {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 600;
-  color: #6366F1;
-  background: #EEF2FF;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-/* Agents Cards */
-.agents-cards {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 16px;
   max-height: 400px;
   overflow-y: auto;
   padding-right: 4px;
 }
 
-.agents-cards::-webkit-scrollbar {
-  width: 4px;
-}
-
-.agents-cards::-webkit-scrollbar-thumb {
-  background: #DDD;
-  border-radius: 2px;
-}
-
-.agents-cards::-webkit-scrollbar-thumb:hover {
-  background: #CCC;
-}
-
-.agent-card {
-  background: #F9F9F9;
-  border: 1px solid #E5E5E5;
-  border-radius: 6px;
-  padding: 14px;
+/* PROFILE CARD OVERHAUL FOR LONG NAMES */
+.profile-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: var(--radius-md);
+  padding: 16px;
+  cursor: pointer;
   transition: all 0.2s ease;
-}
-
-.agent-card:hover {
-  border-color: #999;
-  background: #FFF;
-}
-
-/* Agent Card Header */
-.agent-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 14px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #F1F5F9;
-}
-
-.agent-identity {
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.agent-id {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: #94A3B8;
+.profile-card:hover {
+  border-color: #94A3B8;
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
 }
 
-.agent-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1E293B;
+.profile-header { 
+  display: flex; 
+  flex-direction: column; /* Stack vertically to prevent overlap */
+  align-items: flex-start;
+  gap: 4px; 
+  margin-bottom: 12px; 
+}
+.profile-realname { 
+  font-size: 15px; 
+  font-weight: 700; 
+  color: #0F172A; 
+  word-break: break-word; /* Ensure long names break safely */
+  line-height: 1.3;
+}
+.profile-username { 
+  font-family: 'JetBrains Mono', monospace; 
+  font-size: 11px; 
+  color: #64748B; 
+  word-break: break-all; /* Ensure massive twitter handles break safely */
 }
 
-.agent-tags {
-  display: flex;
-  gap: 6px;
+.profile-meta { margin-bottom: 12px; }
+.profile-profession { 
+  display: inline-block; /* Allows proper wrapping */
+  font-size: 11px; 
+  font-weight: 600; 
+  color: #475569; 
+  background: #F1F5F9; 
+  padding: 4px 8px; 
+  border-radius: 6px; 
+  line-height: 1.4;
+  word-break: break-word;
 }
 
-.agent-type {
-  font-size: 10px;
-  color: #64748B;
-  background: #F1F5F9;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
+.profile-bio { font-size: 13px; color: #334155; line-height: 1.6; margin: 0 0 12px 0; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
-.agent-stance {
-  font-size: 10px;
-  font-weight: 500;
-  text-transform: uppercase;
-  padding: 2px 8px;
-  border-radius: 4px;
-}
+.profile-topics { display: flex; flex-wrap: wrap; gap: 8px; }
+.topic-tag { font-size: 10px; font-weight: 600; color: #1D4ED8; background: #DBEAFE; padding: 4px 8px; border-radius: 6px; }
+.topic-more { font-size: 10px; font-weight: 600; color: #64748B; padding: 4px; }
 
-.stance-neutral {
-  background: #F1F5F9;
-  color: #64748B;
-}
+/* Config Preview */
+.config-detail-panel { margin-top: 24px; }
+.config-block { margin-top: 24px; border-top: 1px solid #E2E8F0; padding-top: 24px; }
+.config-block:first-child { margin-top: 0; border-top: none; padding-top: 0; }
 
-.stance-supportive {
-  background: #DCFCE7;
-  color: #16A34A;
-}
+.config-block-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.config-block-title { font-size: 13px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.05em; }
+.config-block-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; background: #F1F5F9; color: #475569; padding: 4px 10px; border-radius: 6px; }
 
-.stance-opposing {
-  background: #FEE2E2;
-  color: #DC2626;
-}
+/* Config Grid */
+.config-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.config-item { background: #F8FAFC; padding: 16px; border-radius: var(--radius-sm); border: 1px solid var(--border-light); display: flex; flex-direction: column; gap: 6px; }
+.config-item-label { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; }
+.config-item-value { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: #0F172A; }
 
-.stance-observer {
-  background: #FEF3C7;
-  color: #D97706;
-}
+/* Time Periods */
+.time-periods { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.period-item { display: flex; align-items: center; gap: 16px; padding: 12px 16px; background: #F8FAFC; border-radius: var(--radius-sm); border: 1px solid var(--border-light); }
+.period-label { font-size: 12px; font-weight: 600; color: #0F172A; min-width: 90px; }
+.period-hours { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #475569; flex: 1; }
+.period-multiplier { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; color: #4F46E5; background: #E0E7FF; padding: 4px 8px; border-radius: 6px; }
+
+/* Agents Cards */
+.agents-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; max-height: 500px; overflow-y: auto; padding-right: 4px; }
+.agent-card { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: var(--radius-md); padding: 20px; transition: all 0.2s ease; box-shadow: var(--shadow-sm); }
+.agent-card:hover { border-color: #94A3B8; box-shadow: var(--shadow-md); }
+
+.agent-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #F1F5F9; }
+.agent-identity { display: flex; flex-direction: column; gap: 4px; }
+.agent-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: #64748B; }
+.agent-name { font-size: 15px; font-weight: 700; color: #0F172A; word-break: break-word; }
+
+.agent-tags { display: flex; gap: 8px; }
+.agent-type { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; background: #F1F5F9; padding: 4px 8px; border-radius: 6px; }
+.agent-stance { font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 4px 8px; border-radius: 6px; }
+
+.stance-neutral { background: #F1F5F9; color: #475569; }
+.stance-supportive { background: #D1FAE5; color: #059669; }
+.stance-opposing { background: #FEE2E2; color: #DC2626; }
+.stance-observer { background: #FEF3C7; color: #D97706; }
 
 /* Agent Timeline */
-.agent-timeline {
-  margin-bottom: 14px;
-}
-
-.timeline-label {
-  display: block;
-  font-size: 10px;
-  color: #94A3B8;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.mini-timeline {
-  display: flex;
-  gap: 2px;
-  height: 16px;
-  background: #F8FAFC;
-  border-radius: 4px;
-  padding: 3px;
-}
-
-.timeline-hour {
-  flex: 1;
-  background: #E2E8F0;
-  border-radius: 2px;
-  transition: all 0.2s;
-}
-
-.timeline-hour.active {
-  background: linear-gradient(180deg, #6366F1, #818CF8);
-}
-
-.timeline-marks {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 4px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px;
-  color: #94A3B8;
-}
+.agent-timeline { margin-bottom: 20px; }
+.timeline-label { display: block; font-size: 10px; font-weight: 800; color: #64748B; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+.mini-timeline { display: flex; gap: 2px; height: 20px; background: #F8FAFC; border-radius: 6px; padding: 4px; border: 1px solid #E2E8F0; }
+.timeline-hour { flex: 1; background: #E2E8F0; border-radius: 2px; transition: all 0.2s; }
+.timeline-hour.active { background: linear-gradient(180deg, #3B82F6, #60A5FA); }
+.timeline-marks { display: flex; justify-content: space-between; margin-top: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 600; color: #94A3B8; }
 
 /* Agent Params */
-.agent-params {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+.agent-params { display: flex; flex-direction: column; gap: 12px; }
+.param-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.param-item { display: flex; flex-direction: column; gap: 4px; }
+.param-item .param-label { font-size: 10px; font-weight: 700; color: #64748B; text-transform: uppercase; }
+.param-item .param-value { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; color: #0F172A; }
 
-.param-group {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.param-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.param-item .param-label {
-  font-size: 10px;
-  color: #94A3B8;
-}
-
-.param-item .param-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: #475569;
-}
-
-.param-value.with-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.mini-bar {
-  height: 4px;
-  background: linear-gradient(90deg, #6366F1, #A855F7);
-  border-radius: 2px;
-  min-width: 4px;
-  max-width: 40px;
-}
-
-.param-value.positive {
-  color: #16A34A;
-}
-
-.param-value.negative {
-  color: #DC2626;
-}
-
-.param-value.neutral {
-  color: #64748B;
-}
-
-.param-value.highlight {
-  color: #6366F1;
-}
+.param-value.with-bar { display: flex; align-items: center; gap: 8px; }
+.mini-bar { height: 6px; background: linear-gradient(90deg, #3B82F6, #8B5CF6); border-radius: 3px; min-width: 6px; max-width: 40px; }
+.param-value.positive { color: #10B981; }
+.param-value.negative { color: #EF4444; }
+.param-value.neutral { color: #64748B; }
+.param-value.highlight { color: #3B82F6; }
 
 /* Platforms Grid */
-.platforms-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.platform-card {
-  background: #F9F9F9;
-  padding: 14px;
-  border-radius: 6px;
-}
-
-.platform-card-header {
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #E5E5E5;
-}
-
-.platform-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-}
-
-.platform-params {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.param-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.param-label {
-  font-size: 12px;
-  color: #64748B;
-}
-
-.param-value {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
-  font-weight: 600;
-  color: #1E293B;
-}
+.platforms-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.platform-card { background: #FFFFFF; border: 1px solid #E2E8F0; padding: 20px; border-radius: var(--radius-md); box-shadow: var(--shadow-sm); }
+.platform-card-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid #F1F5F9; }
+.platform-name { font-size: 14px; font-weight: 700; color: #0F172A; }
+.platform-params { display: flex; flex-direction: column; gap: 12px; }
+.param-row { display: flex; justify-content: space-between; align-items: center; }
 
 /* Reasoning Content */
-.reasoning-content {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
+.reasoning-content { display: flex; flex-direction: column; gap: 12px; }
+.reasoning-item { padding: 16px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: var(--radius-sm); }
+.reasoning-text { font-size: 13px; color: #334155; line-height: 1.6; margin: 0; }
 
-.reasoning-item {
-  padding: 12px 14px;
-  background: #F9F9F9;
-  border-radius: 6px;
-}
-
-.reasoning-text {
-  font-size: 13px;
-  color: #555;
-  line-height: 1.7;
-  margin: 0;
-}
-
-/* Profile Modal */
+/* Profile Modal (Glassmorphism + Long Name Support) */
 .profile-modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-  backdrop-filter: blur(4px);
+  position: fixed; inset: 0; background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
 
 .profile-modal {
-  background: #FFF;
-  border-radius: 16px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 85vh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  background: #FFFFFF; border-radius: 24px; width: 90%; max-width: 600px;
+  max-height: 85vh; overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
 }
 
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  padding: 24px;
-  background: #FFF;
-  border-bottom: 1px solid #F0F0F0;
+.modal-header { display: flex; justify-content: space-between; align-items: flex-start; padding: 24px 32px; background: #F8FAFC; border-bottom: 1px solid #F1F5F9; }
+.modal-header-info { flex: 1; padding-right: 16px; }
+.modal-name-row { 
+  display: flex; 
+  flex-direction: column; /* Stacked for extremely long names */
+  align-items: flex-start; 
+  gap: 6px; 
+  margin-bottom: 12px; 
 }
-
-.modal-header-info {
-  flex: 1;
+.modal-realname { 
+  font-size: 22px; 
+  font-weight: 800; 
+  color: #0F172A; 
+  word-break: break-word; 
+  line-height: 1.2;
 }
-
-.modal-name-row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  margin-bottom: 8px;
+.modal-username { 
+  font-family: 'JetBrains Mono', monospace; 
+  font-size: 13px; 
+  font-weight: 600; 
+  color: #64748B; 
+  word-break: break-all;
 }
-
-.modal-realname {
-  font-size: 20px;
-  font-weight: 700;
-  color: #000;
-}
-
-.modal-username {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
-  color: #999;
-}
-
-.modal-profession {
-  font-size: 12px;
-  color: #666;
-  background: #F5F5F5;
-  padding: 4px 10px;
-  border-radius: 4px;
-  display: inline-block;
-  font-weight: 500;
-}
-
-.close-btn {
-  width: 32px;
-  height: 32px;
-  border: none;
-  background: none;
-  color: #999;
-  border-radius: 50%;
-  font-size: 24px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-  transition: color 0.2s;
-  padding: 0;
-}
-
-.close-btn:hover {
-  color: #333;
-}
-
-.modal-body {
-  padding: 24px;
-  overflow-y: auto;
-  flex: 1;
-}
-
-/* Basic info grid */
-.modal-info-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 24px 16px;
-  margin-bottom: 32px;
-  padding: 0;
-  background: transparent;
-  border-radius: 0;
-}
-
-.info-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.info-label {
-  font-size: 11px;
-  color: #999;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-.info-value {
-  font-size: 15px;
-  font-weight: 600;
-  color: #333;
-}
-
-.info-value.mbti {
-  font-family: 'JetBrains Mono', monospace;
-  color: #FF5722;
-}
-
-/* Section area */
-.modal-section {
-  margin-bottom: 28px;
-}
-
-.section-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #999;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
-
-.section-bio {
-  font-size: 14px;
-  color: #333;
-  line-height: 1.6;
-  margin: 0;
-  padding: 16px;
-  background: #F9F9F9;
-  border-radius: 6px;
-  border-left: 3px solid #E0E0E0;
-}
-
-/* Topic tags */
-.topics-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.topic-item {
-  font-size: 11px;
-  color: #1565C0;
-  background: #E3F2FD;
-  padding: 4px 10px;
-  border-radius: 12px;
-  transition: all 0.2s;
-  border: none;
-}
-
-.topic-item:hover {
-  background: #BBDEFB;
-  color: #0D47A1;
-}
-
-/* Detailed persona */
-.persona-dimensions {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.dimension-card {
-  background: #F8F9FA;
-  padding: 12px;
-  border-radius: 6px;
-  border-left: 3px solid #DDD;
-  transition: all 0.2s;
-}
-
-.dimension-card:hover {
-  background: #F0F0F0;
-  border-left-color: #999;
-}
-
-.dim-title {
-  display: block;
-  font-size: 12px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 4px;
-}
-
-.dim-desc {
-  display: block;
-  font-size: 10px;
-  color: #888;
+.modal-profession { 
+  font-size: 12px; 
+  font-weight: 700; 
+  color: #475569; 
+  background: #E2E8F0; 
+  padding: 6px 12px; 
+  border-radius: 6px; 
+  display: inline-block; 
+  max-width: 100%; /* Prevent overflow */
+  word-break: break-word;
+  white-space: normal;
   line-height: 1.4;
 }
 
-.persona-content {
-  max-height: none;
-  overflow: visible;
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: 0;
+.close-btn {
+  width: 32px; height: 32px; border: 1px solid #E2E8F0; background: #FFF; color: #64748B;
+  border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s; box-shadow: var(--shadow-sm); flex-shrink: 0;
 }
+.close-btn:hover { background: #F1F5F9; color: #0F172A; }
 
-.persona-content::-webkit-scrollbar {
-  width: 4px;
-}
+.modal-body { padding: 32px; overflow-y: auto; flex: 1; }
 
-.persona-content::-webkit-scrollbar-thumb {
-  background: #DDD;
-  border-radius: 2px;
-}
+.modal-info-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; margin-bottom: 32px; }
+.modal-section { margin-bottom: 32px; }
+.section-label { display: block; font-size: 11px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+.section-bio { font-size: 14px; color: #334155; line-height: 1.6; margin: 0; padding: 20px; background: #F8FAFC; border-radius: 12px; border: 1px solid #E2E8F0; }
 
-.section-persona {
-  font-size: 13px;
-  color: #555;
-  line-height: 1.8;
-  margin: 0;
-  text-align: justify;
-}
+.topics-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.topic-item { font-size: 12px; font-weight: 600; color: #1D4ED8; background: #DBEAFE; padding: 6px 12px; border-radius: 8px; }
 
-/* System Logs */
-.system-logs {
-  background: #000;
-  color: #DDD;
-  padding: 16px;
-  font-family: 'JetBrains Mono', monospace;
-  border-top: 1px solid #222;
-  flex-shrink: 0;
-}
+.persona-dimensions { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 20px; }
+.dimension-card { background: #F8FAFC; padding: 16px; border-radius: 12px; border: 1px solid #E2E8F0; border-left: 4px solid #3B82F6; transition: all 0.2s; }
+.dimension-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.dim-title { display: block; font-size: 12px; font-weight: 800; color: #0F172A; margin-bottom: 6px; }
+.dim-desc { display: block; font-size: 11px; font-weight: 500; color: #64748B; line-height: 1.5; }
 
-.log-header {
-  display: flex;
-  justify-content: space-between;
-  border-bottom: 1px solid #333;
-  padding-bottom: 8px;
-  margin-bottom: 8px;
-  font-size: 10px;
-  color: #888;
-}
+.persona-content { padding: 0; background: transparent; border: none; }
+.section-persona { font-size: 14px; color: #334155; line-height: 1.8; margin: 0; text-align: justify; }
 
-.log-content {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  height: 80px; /* Approx 4 lines visible */
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.log-content::-webkit-scrollbar {
-  width: 4px;
-}
-
-.log-content::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 2px;
-}
-
-.log-line {
-  font-size: 11px;
-  display: flex;
-  gap: 12px;
-  line-height: 1.5;
-}
-
-.log-time {
-  color: #666;
-  min-width: 75px;
-}
-
-.log-msg {
-  color: #CCC;
-  word-break: break-all;
-}
-
-/* Spinner */
-.spinner-sm {
-  width: 16px;
-  height: 16px;
-  border: 2px solid #E5E5E5;
-  border-top-color: #FF5722;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
 /* Orchestration Content */
-.orchestration-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-top: 16px;
-}
+.orchestration-content { display: flex; flex-direction: column; gap: 24px; margin-top: 24px; }
+.box-label { display: block; font-size: 12px; font-weight: 800; color: #0F172A; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 16px; }
 
-.box-label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-}
+.narrative-box { background: #FFFFFF; padding: 24px; border-radius: var(--radius-md); border: 1px solid #E2E8F0; box-shadow: var(--shadow-sm); }
+.narrative-box .box-label { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.special-icon { color: #3B82F6; }
+.narrative-text { font-size: 14px; color: #334155; line-height: 1.8; margin: 0; }
 
-.narrative-box {
-  background: #FFFFFF;
-  padding: 20px 24px;
-  border-radius: 12px;
-  border: 1px solid #EEF2F6;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.03);
-  transition: all 0.3s ease;
-}
+.topics-section { background: transparent; }
+.hot-topics-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.hot-topic-tag { font-size: 13px; font-weight: 700; color: #C2410C; background: #FFEDD5; padding: 6px 14px; border-radius: 8px; }
 
-.narrative-box .box-label {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: #666;
-  font-size: 13px;
-  letter-spacing: 0.5px;
-  margin-bottom: 12px;
-  font-weight: 600;
-}
-
-.special-icon {
-  filter: drop-shadow(0 2px 4px rgba(255, 87, 34, 0.2));
-  transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.narrative-box:hover .special-icon {
-  transform: rotate(180deg);
-}
-
-.narrative-text {
-  font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
-  font-size: 14px;
-  color: #334155;
-  line-height: 1.8;
-  margin: 0;
-  text-align: justify;
-  letter-spacing: 0.01em;
-}
-
-.topics-section {
-  background: #FFF;
-}
-
-.hot-topics-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.hot-topic-tag {
-  font-size: 12px;
-  color:rgba(255, 86, 34, 0.88);
-  background: #FFF3E0;
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.hot-topic-more {
-  font-size: 11px;
-  color: #999;
-  padding: 4px 6px;
-}
-
-.initial-posts-section {
-  border-top: 1px solid #EAEAEA;
-  padding-top: 16px;
-}
-
-.posts-timeline {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  padding-left: 8px;
-  border-left: 2px solid #F0F0F0;
-  margin-top: 12px;
-}
-
-.timeline-item {
-  position: relative;
-  padding-left: 20px;
-}
-
-.timeline-marker {
-  position: absolute;
-  left: 0;
-  top: 14px;
-  width: 12px;
-  height: 2px;
-  background: #DDD;
-}
-
-.timeline-content {
-  background: #F9F9F9;
-  padding: 12px;
-  border-radius: 6px;
-  border: 1px solid #EEE;
-}
-
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 6px;
-}
-
-.post-role {
-  font-size: 11px;
-  font-weight: 700;
-  color: #333;
-  text-transform: uppercase;
-}
-
-.post-agent-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.post-id,
-.post-username {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: #666;
-  line-height: 1;
-  vertical-align: baseline;
-}
-
-.post-username {
-  margin-right: 6px;
-}
-
-.post-text {
-  font-size: 12px;
-  color: #555;
-  line-height: 1.5;
-  margin: 0;
-}
+.initial-posts-section { border-top: 1px solid #E2E8F0; padding-top: 24px; }
+.posts-timeline { display: flex; flex-direction: column; gap: 20px; padding-left: 12px; border-left: 2px solid #E2E8F0; margin-top: 16px; }
+.timeline-item { position: relative; padding-left: 24px; }
+.timeline-marker { position: absolute; left: -1px; top: 16px; width: 16px; height: 2px; background: #CBD5E1; }
+.timeline-content { background: #F8FAFC; padding: 16px; border-radius: var(--radius-sm); border: 1px solid #E2E8F0; }
+.post-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.post-role { font-size: 10px; font-weight: 800; color: #FFFFFF; background: #0F172A; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; }
+.post-agent-info { display: flex; align-items: center; gap: 8px; }
+.post-id { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: #64748B; }
+.post-username { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #3B82F6; word-break: break-all; }
+.post-text { font-size: 13px; color: #334155; line-height: 1.6; margin: 0; }
 
 /* Simulation rounds config styles */
-.rounds-config-section {
-  margin: 24px 0;
-  padding-top: 24px;
-  border-top: 1px solid #EAEAEA;
-}
+.rounds-config-section { margin: 32px 0; padding-top: 32px; border-top: 1px solid #E2E8F0; }
+.rounds-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+.header-left { display: flex; flex-direction: column; gap: 6px; }
+.section-title { font-size: 15px; font-weight: 800; color: #0F172A; }
+.section-desc { font-size: 13px; color: #64748B; }
 
-.rounds-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-}
+.switch-control { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 6px; border-radius: 20px; transition: background 0.2s; }
+.switch-control:hover { background: #F8FAFC; }
+.switch-control input { display: none; }
+.switch-track { width: 44px; height: 24px; background: #E2E8F0; border-radius: 12px; position: relative; transition: all 0.3s; }
+.switch-track::after { content: ''; position: absolute; left: 2px; top: 2px; width: 20px; height: 20px; background: #FFF; border-radius: 50%; box-shadow: 0 1px 3px rgba(0,0,0,0.1); transition: transform 0.3s; }
+.switch-control input:checked + .switch-track { background: #0F172A; }
+.switch-control input:checked + .switch-track::after { transform: translateX(20px); }
+.switch-label { font-size: 13px; font-weight: 600; color: #475569; }
+.switch-control input:checked ~ .switch-label { color: #0F172A; }
 
-.header-left {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
+.slider-display { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 20px; }
+.slider-main-value { display: flex; align-items: baseline; gap: 8px; }
+.val-num { font-family: 'JetBrains Mono', monospace; font-size: 32px; font-weight: 800; color: #0F172A; line-height: 1; }
+.val-unit { font-size: 13px; font-weight: 600; color: #64748B; }
+.slider-meta-info { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: #3B82F6; background: #EFF6FF; padding: 6px 12px; border-radius: 6px; }
 
-.section-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1E293B;
-}
+.range-wrapper { position: relative; padding: 0 4px; }
+.minimal-slider { -webkit-appearance: none; width: 100%; height: 6px; background: #E2E8F0; border-radius: 3px; outline: none; background-image: linear-gradient(#3B82F6, #3B82F6); background-size: var(--percent, 0%) 100%; background-repeat: no-repeat; cursor: pointer; }
+.minimal-slider::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 50%; background: #FFF; border: 3px solid #3B82F6; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.15); transition: transform 0.1s; margin-top: -7px; }
+.minimal-slider::-webkit-slider-thumb:hover { transform: scale(1.15); }
+.minimal-slider::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; }
 
-.section-desc {
-  font-size: 12px;
-  color: #94A3B8;
-}
+.range-marks { display: flex; justify-content: space-between; margin-top: 12px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: #94A3B8; position: relative; }
+.mark-recommend { cursor: pointer; transition: color 0.2s; position: relative; }
+.mark-recommend:hover, .mark-recommend.active { color: #0F172A; font-weight: 700; }
+.mark-recommend::after { content: ''; position: absolute; top: -14px; left: 50%; transform: translateX(-50%); width: 2px; height: 6px; background: #94A3B8; }
 
-.desc-highlight {
-  font-family: 'JetBrains Mono', monospace;
-  font-weight: 600;
-  color: #1E293B;
-  background: #F1F5F9;
-  padding: 1px 6px;
-  border-radius: 4px;
-  margin: 0 2px;
-}
+.auto-info-card { display: flex; align-items: center; gap: 32px; background: #F8FAFC; padding: 20px 24px; border-radius: 12px; border: 1px solid #E2E8F0; }
+.auto-value { display: flex; align-items: baseline; gap: 8px; padding-right: 32px; border-right: 1px solid #E2E8F0; }
+.auto-content { flex: 1; display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+.duration-badge { display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 600; color: #3B82F6; background: #EFF6FF; border: 1px solid #BFDBFE; padding: 6px 12px; border-radius: 8px; }
+.auto-desc p { margin: 0; font-size: 14px; color: #64748B; }
+.highlight-tip { margin-top: 4px !important; font-size: 13px !important; color: #0F172A !important; font-weight: 600; cursor: pointer; transition: color 0.2s; }
+.highlight-tip:hover { color: #3B82F6 !important; }
 
-/* Switch Control */
-.switch-control {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-  padding: 4px 8px 4px 4px;
-  border-radius: 20px;
-  transition: background 0.2s;
-}
-
-.switch-control:hover {
-  background: #F8FAFC;
-}
-
-.switch-control input {
-  display: none;
-}
-
-.switch-track {
-  width: 36px;
-  height: 20px;
-  background: #E2E8F0;
-  border-radius: 10px;
+/* ----------------------------------------------------
+   SOLID DARK TERMINAL
+   Forced overrides to prevent transparency
+------------------------------------------------------- */
+.system-logs {
+  background-color: #0F172A !important; /* Force solid dark slate */
+  color: #94A3B8; 
+  padding: 16px 24px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace; 
+  border-top: 1px solid #1E293B; 
+  flex-shrink: 0;
+  box-shadow: 0 -4px 10px rgba(0,0,0,0.1); 
   position: relative;
-  transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+  z-index: 30;
 }
+.log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; font-size: 11px; }
+.log-title-group { display: flex; align-items: center; gap: 8px; }
+.status-dot { width: 8px; height: 8px; background: var(--success); border-radius: 50%; }
+.status-dot.pulsing { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); animation: pulse-green 2s infinite; }
+@keyframes pulse-green { 0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); } 70% { transform: scale(1); box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); } 100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
 
-.switch-track::after {
-  content: '';
-  position: absolute;
-  left: 2px;
-  top: 2px;
-  width: 16px;
-  height: 16px;
-  background: #FFF;
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-  transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-}
+.log-title { color: #38BDF8; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+.log-id { color: #475569; font-weight: 600; }
+.log-content { display: flex; flex-direction: column; gap: 6px; height: 120px; overflow-y: auto; padding-right: 8px; scroll-behavior: smooth; }
 
-.switch-control input:checked + .switch-track {
-  background: #000;
-}
-
-.switch-control input:checked + .switch-track::after {
-  transform: translateX(16px);
-}
-
-.switch-label {
-  font-size: 12px;
-  font-weight: 500;
-  color: #64748B;
-}
-
-.switch-control input:checked ~ .switch-label {
-  color: #1E293B;
-}
-
-/* Slider Content */
-.rounds-content {
-  animation: fadeIn 0.3s ease;
-}
-
-.slider-display {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-bottom: 16px;
-}
-
-.slider-main-value {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-}
-
-.val-num {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 24px;
-  font-weight: 700;
-  color: #000;
-}
-
-.val-unit {
-  font-size: 12px;
-  color: #666;
-  font-weight: 500;
-}
-
-.slider-meta-info {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: #64748B;
-  background: #F1F5F9;
-  padding: 4px 8px;
-  border-radius: 4px;
-}
-
-.range-wrapper {
-  position: relative;
-  padding: 0 2px;
-}
-
-.minimal-slider {
-  -webkit-appearance: none;
-  width: 100%;
-  height: 4px;
-  background: #E2E8F0;
-  border-radius: 2px;
-  outline: none;
-  background-image: linear-gradient(#000, #000);
-  background-size: var(--percent, 0%) 100%;
-  background-repeat: no-repeat;
-  cursor: pointer;
-}
-
-.minimal-slider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #FFF;
-  border: 2px solid #000;
-  cursor: pointer;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-  transition: transform 0.1s;
-  margin-top: -6px; /* Center thumb */
-}
-
-.minimal-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
-}
-
-.minimal-slider::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 2px;
-}
-
-.range-marks {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 8px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: #94A3B8;
-  position: relative;
-}
-
-.mark-recommend {
-  cursor: pointer;
-  transition: color 0.2s;
-  position: relative;
-}
-
-.mark-recommend:hover {
-  color: #000;
-}
-
-.mark-recommend.active {
-  color: #000;
-  font-weight: 600;
-}
-
-.mark-recommend::after {
-  content: '';
-  position: absolute;
-  top: -12px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 1px;
-  height: 4px;
-  background: #CBD5E1;
-}
-
-/* Auto Info */
-.auto-info-card {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  background: #F8FAFC;
-  padding: 16px 20px;
-  border-radius: 8px;
-}
-
-.auto-value {
-  display: flex;
-  flex-direction: row;
-  align-items: baseline;
-  gap: 4px;
-  padding-right: 24px;
-  border-right: 1px solid #E2E8F0;
-}
-
-.auto-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  justify-content: center;
-}
-
-.auto-meta-row {
-  display: flex;
-  align-items: center;
-}
-
-.duration-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  font-weight: 500;
-  color: #64748B;
-  background: #FFFFFF;
-  border: 1px solid #E2E8F0;
-  padding: 3px 8px;
-  border-radius: 6px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-}
-
-.auto-desc {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.auto-desc p {
-  margin: 0;
-  font-size: 13px;
-  color: #64748B;
-  line-height: 1.5;
-}
-
-.highlight-tip {
-  margin-top: 4px !important;
-  font-size: 12px !important;
-  color: #000 !important;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.highlight-tip:hover {
-  text-decoration: underline;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(4px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-
-/* Modal Transition */
-.modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.3s ease;
-}
-
-.modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-enter-active .profile-modal {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-
-.modal-leave-active .profile-modal {
-  transition: all 0.3s ease-in;
-}
-
-.modal-enter-from .profile-modal,
-.modal-leave-to .profile-modal {
-  transform: scale(0.95) translateY(10px);
-  opacity: 0;
-}
+.fade-enter-active, .fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+.modal-enter-active, .modal-leave-active { transition: opacity 0.3s ease; }
+.modal-enter-from, .modal-leave-to { opacity: 0; }
+.modal-enter-active .profile-modal { transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+.modal-leave-active .profile-modal { transition: all 0.3s ease-in; }
+.modal-enter-from .profile-modal, .modal-leave-to .profile-modal { transform: scale(0.95) translateY(10px); opacity: 0; }
 </style>

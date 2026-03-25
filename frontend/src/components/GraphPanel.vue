@@ -1,98 +1,91 @@
 <template>
   <div class="graph-panel">
     <div class="panel-header">
-      <span class="panel-title">Graph Relationship Visualization</span>
-      <!-- Top toolbar (Internal Top Right) -->
+      <span class="panel-title">Knowledge Graph Visualization</span>
       <div class="header-tools">
-        <button class="tool-btn" @click="$emit('refresh')" :disabled="loading" :title="$t('graph.refreshGraph')">
-          <span class="icon-refresh" :class="{ 'spinning': loading }">↻</span>
+        <button class="tool-btn" @click="$emit('refresh')" :disabled="loading" title="Refresh Graph">
+          <svg class="icon-refresh" :class="{ 'spinning': loading }" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path><path d="M3 22v-6h6"></path><path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path></svg>
           <span class="btn-text">Refresh</span>
         </button>
-        <button class="tool-btn" @click="$emit('toggle-maximize')" :title="$t('graph.maximize')">
-          <span class="icon-maximize">⛶</span>
+        <button class="tool-btn icon-only" @click="$emit('toggle-maximize')" title="Toggle Fullscreen">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
         </button>
       </div>
     </div>
     
     <div class="graph-container" ref="graphContainer">
-      <!-- Graph visualization -->
       <div v-if="graphData" class="graph-view">
         <svg ref="graphSvg" class="graph-svg"></svg>
         
-        <!-- Building/simulating hint -->
         <div v-if="currentPhase === 1 || isSimulating" class="graph-building-hint">
           <div class="memory-icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="memory-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="memory-icon">
               <path d="M9.5 2A2.5 2.5 0 0 1 12 4.5v15a2.5 2.5 0 0 1-4.96.44 2.5 2.5 0 0 1-2.96-3.08 3 3 0 0 1-.34-5.58 2.5 2.5 0 0 1 1.32-4.24 2.5 2.5 0 0 1 4.44-4.04z" />
               <path d="M14.5 2A2.5 2.5 0 0 0 12 4.5v15a2.5 2.5 0 0 0 4.96.44 2.5 2.5 0 0 0 2.96-3.08 3 3 0 0 0 .34-5.58 2.5 2.5 0 0 0-1.32-4.24 2.5 2.5 0 0 0-4.44-4.04z" />
             </svg>
           </div>
-          {{ isSimulating ? $t('process.graphMemoryUpdate') : $t('process.updatingLive') }}
+          {{ isSimulating ? 'Updating GraphRAG memory in real-time...' : 'Constructing graph live...' }}
         </div>
         
-        <!-- Post-simulation hint -->
         <div v-if="showSimulationFinishedHint" class="graph-building-hint finished-hint">
           <div class="hint-icon-wrapper">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="hint-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="hint-icon">
               <circle cx="12" cy="12" r="10"></circle>
               <line x1="12" y1="16" x2="12" y2="12"></line>
               <line x1="12" y1="8" x2="12.01" y2="8"></line>
             </svg>
           </div>
-          <span class="hint-text">{{ $t('process.remainingContent') }}</span>
-          <button class="hint-close-btn" @click="dismissFinishedHint" :title="$t('graph.closeHint')">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+          <span class="hint-text">Processing background content. Please refresh manually later.</span>
+          <button class="hint-close-btn" @click="dismissFinishedHint" title="Close Hint">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
               <line x1="18" y1="6" x2="6" y2="18"></line>
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
         </div>
         
-        <!-- Node/edge detail panel -->
         <div v-if="selectedItem" class="detail-panel">
           <div class="detail-panel-header">
-            <span class="detail-title">{{ selectedItem.type === 'node' ? 'Node Details' : 'Relationship' }}</span>
+            <span class="detail-title">{{ selectedItem.type === 'node' ? 'Entity Inspector' : 'Relation Inspector' }}</span>
             <span v-if="selectedItem.type === 'node'" class="detail-type-badge" :style="{ background: selectedItem.color, color: '#fff' }">
               {{ selectedItem.entityType }}
             </span>
-            <button class="detail-close" @click="closeDetailPanel">×</button>
+            <button class="detail-close" @click="closeDetailPanel">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            </button>
           </div>
           
-          <!-- Node details -->
-          <div v-if="selectedItem.type === 'node'" class="detail-content">
+          <div v-if="selectedItem.type === 'node'" class="detail-content custom-scrollbar">
             <div class="detail-row">
-              <span class="detail-label">Name:</span>
-              <span class="detail-value">{{ selectedItem.data.name }}</span>
+              <span class="detail-label">Name</span>
+              <span class="detail-value highlight">{{ selectedItem.data.name }}</span>
             </div>
             <div class="detail-row">
-              <span class="detail-label">UUID:</span>
+              <span class="detail-label">UUID</span>
               <span class="detail-value uuid-text">{{ selectedItem.data.uuid }}</span>
             </div>
             <div class="detail-row" v-if="selectedItem.data.created_at">
-              <span class="detail-label">Created:</span>
+              <span class="detail-label">Created</span>
               <span class="detail-value">{{ formatDateTime(selectedItem.data.created_at) }}</span>
             </div>
             
-            <!-- Properties -->
             <div class="detail-section" v-if="selectedItem.data.attributes && Object.keys(selectedItem.data.attributes).length > 0">
-              <div class="section-title">Properties:</div>
+              <div class="section-title">Properties</div>
               <div class="properties-list">
                 <div v-for="(value, key) in selectedItem.data.attributes" :key="key" class="property-item">
-                  <span class="property-key">{{ key }}:</span>
+                  <span class="property-key">{{ key }}</span>
                   <span class="property-value">{{ value || 'None' }}</span>
                 </div>
               </div>
             </div>
             
-            <!-- Summary -->
             <div class="detail-section" v-if="selectedItem.data.summary">
-              <div class="section-title">Summary:</div>
+              <div class="section-title">Summary</div>
               <div class="summary-text">{{ selectedItem.data.summary }}</div>
             </div>
             
-            <!-- Labels -->
             <div class="detail-section" v-if="selectedItem.data.labels && selectedItem.data.labels.length > 0">
-              <div class="section-title">Labels:</div>
+              <div class="section-title">Labels</div>
               <div class="labels-list">
                 <span v-for="label in selectedItem.data.labels" :key="label" class="label-tag">
                   {{ label }}
@@ -101,12 +94,10 @@
             </div>
           </div>
           
-          <!-- Edge details -->
-          <div v-else class="detail-content">
-            <!-- Self-loop group details -->
+          <div v-else class="detail-content custom-scrollbar">
             <template v-if="selectedItem.data.isSelfLoopGroup">
               <div class="edge-relation-header self-loop-header">
-                {{ selectedItem.data.source_name }} - Self Relations
+                {{ selectedItem.data.source_name }} (Self Relations)
                 <span class="self-loop-count">{{ selectedItem.data.selfLoopCount }} items</span>
               </div>
               
@@ -128,23 +119,23 @@
                   
                   <div class="self-loop-item-content" v-show="expandedSelfLoops.has(loop.uuid || idx)">
                     <div class="detail-row" v-if="loop.uuid">
-                      <span class="detail-label">UUID:</span>
+                      <span class="detail-label">UUID</span>
                       <span class="detail-value uuid-text">{{ loop.uuid }}</span>
                     </div>
                     <div class="detail-row" v-if="loop.fact">
-                      <span class="detail-label">Fact:</span>
+                      <span class="detail-label">Fact</span>
                       <span class="detail-value fact-text">{{ loop.fact }}</span>
                     </div>
                     <div class="detail-row" v-if="loop.fact_type">
-                      <span class="detail-label">Type:</span>
+                      <span class="detail-label">Type</span>
                       <span class="detail-value">{{ loop.fact_type }}</span>
                     </div>
                     <div class="detail-row" v-if="loop.created_at">
-                      <span class="detail-label">Created:</span>
+                      <span class="detail-label">Created</span>
                       <span class="detail-value">{{ formatDateTime(loop.created_at) }}</span>
                     </div>
                     <div v-if="loop.episodes && loop.episodes.length > 0" class="self-loop-episodes">
-                      <span class="detail-label">Episodes:</span>
+                      <span class="detail-label">Episodes</span>
                       <div class="episodes-list compact">
                         <span v-for="ep in loop.episodes" :key="ep" class="episode-tag small">{{ ep }}</span>
                       </div>
@@ -154,32 +145,34 @@
               </div>
             </template>
             
-            <!-- Normal edge details -->
             <template v-else>
               <div class="edge-relation-header">
-                {{ selectedItem.data.source_name }} → {{ selectedItem.data.name || 'RELATED_TO' }} → {{ selectedItem.data.target_name }}
+                <span class="font-bold">{{ selectedItem.data.source_name }}</span>
+                <span class="mx-2 text-slate-400">→</span>
+                <span class="text-blue-600 bg-blue-50 px-2 py-0.5 rounded text-[10px] uppercase font-bold">{{ selectedItem.data.name || 'RELATED_TO' }}</span>
+                <span class="mx-2 text-slate-400">→</span>
+                <span class="font-bold">{{ selectedItem.data.target_name }}</span>
               </div>
               
-              <div class="detail-row">
-                <span class="detail-label">UUID:</span>
+              <div class="detail-row mt-4">
+                <span class="detail-label">UUID</span>
                 <span class="detail-value uuid-text">{{ selectedItem.data.uuid }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">Label:</span>
-                <span class="detail-value">{{ selectedItem.data.name || 'RELATED_TO' }}</span>
+                <span class="detail-label">Label</span>
+                <span class="detail-value font-bold">{{ selectedItem.data.name || 'RELATED_TO' }}</span>
               </div>
               <div class="detail-row">
-                <span class="detail-label">Type:</span>
+                <span class="detail-label">Type</span>
                 <span class="detail-value">{{ selectedItem.data.fact_type || 'Unknown' }}</span>
               </div>
               <div class="detail-row" v-if="selectedItem.data.fact">
-                <span class="detail-label">Fact:</span>
-                <span class="detail-value fact-text">{{ selectedItem.data.fact }}</span>
+                <span class="detail-label">Fact</span>
+                <span class="detail-value fact-text summary-text">{{ selectedItem.data.fact }}</span>
               </div>
               
-              <!-- Episodes -->
               <div class="detail-section" v-if="selectedItem.data.episodes && selectedItem.data.episodes.length > 0">
-                <div class="section-title">Episodes:</div>
+                <div class="section-title">Episodes</div>
                 <div class="episodes-list">
                   <span v-for="ep in selectedItem.data.episodes" :key="ep" class="episode-tag">
                     {{ ep }}
@@ -188,34 +181,34 @@
               </div>
               
               <div class="detail-row" v-if="selectedItem.data.created_at">
-                <span class="detail-label">Created:</span>
-                <span class="detail-value">{{ formatDateTime(selectedItem.data.created_at) }}</span>
+                <span class="detail-label">Created</span>
+                <span class="detail-value uuid-text">{{ formatDateTime(selectedItem.data.created_at) }}</span>
               </div>
               <div class="detail-row" v-if="selectedItem.data.valid_at">
-                <span class="detail-label">Valid From:</span>
-                <span class="detail-value">{{ formatDateTime(selectedItem.data.valid_at) }}</span>
+                <span class="detail-label">Valid From</span>
+                <span class="detail-value uuid-text">{{ formatDateTime(selectedItem.data.valid_at) }}</span>
               </div>
             </template>
           </div>
         </div>
       </div>
       
-      <!-- Loading state -->
       <div v-else-if="loading" class="graph-state">
         <div class="loading-spinner"></div>
-        <p>{{ $t('graph.loadingData') }}</p>
+        <p class="state-text">Loading Graph Data...</p>
       </div>
       
-      <!-- Waiting/empty state -->
       <div v-else class="graph-state">
-        <div class="empty-icon">❖</div>
-        <p class="empty-text">{{ $t('graph.waitingOntology') }}</p>
+        <svg class="empty-icon" viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="#CBD5E1" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M12 8v4l3 3"></path>
+        </svg>
+        <p class="state-text">Waiting for Ontology...</p>
       </div>
     </div>
 
-    <!-- Bottom legend (Bottom Left) -->
     <div v-if="graphData && entityTypes.length" class="graph-legend">
-      <span class="legend-title">Entity Types</span>
+      <span class="legend-title">ENTITY TYPES</span>
       <div class="legend-items">
         <div class="legend-item" v-for="type in entityTypes" :key="type.name">
           <span class="legend-dot" :style="{ background: type.color }"></span>
@@ -224,23 +217,19 @@
       </div>
     </div>
     
-    <!-- Edge labels toggle -->
     <div v-if="graphData" class="edge-labels-toggle">
       <label class="toggle-switch">
         <input type="checkbox" v-model="showEdgeLabels" />
         <span class="slider"></span>
       </label>
-      <span class="toggle-label">Show Edge Labels</span>
+      <span class="toggle-label">EDGE LABELS</span>
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import * as d3 from 'd3'
-
-const { t } = useI18n()
 
 const props = defineProps({
   graphData: Object,
@@ -254,26 +243,22 @@ const emit = defineEmits(['refresh', 'toggle-maximize'])
 const graphContainer = ref(null)
 const graphSvg = ref(null)
 const selectedItem = ref(null)
-const showEdgeLabels = ref(true) // Show edge labels by default
-const expandedSelfLoops = ref(new Set()) // Expanded self-loop items
-const showSimulationFinishedHint = ref(false) // Post-simulation hint
-const wasSimulating = ref(false) // Track whether simulation was previously running
+const showEdgeLabels = ref(true)
+const expandedSelfLoops = ref(new Set())
+const showSimulationFinishedHint = ref(false)
+const wasSimulating = ref(false)
 
-// Dismiss the simulation finished hint
 const dismissFinishedHint = () => {
   showSimulationFinishedHint.value = false
 }
 
-// Watch isSimulating changes to detect simulation completion
 watch(() => props.isSimulating, (newValue, oldValue) => {
   if (wasSimulating.value && !newValue) {
-    // Transitioned from simulating to non-simulating state, show finished hint
     showSimulationFinishedHint.value = true
   }
   wasSimulating.value = newValue
 }, { immediate: true })
 
-// Toggle self-loop item expand/collapse state
 const toggleSelfLoop = (id) => {
   const newSet = new Set(expandedSelfLoops.value)
   if (newSet.has(id)) {
@@ -284,12 +269,11 @@ const toggleSelfLoop = (id) => {
   expandedSelfLoops.value = newSet
 }
 
-// Compute entity types for the legend
 const entityTypes = computed(() => {
   if (!props.graphData?.nodes) return []
   const typeMap = {}
-  // Aesthetically pleasing color palette
-  const colors = ['#FF6B35', '#004E89', '#7B2D8E', '#1A936F', '#C5283D', '#E9724C', '#3498db', '#9b59b6', '#27ae60', '#f39c12']
+  // Prophesize AI Modern Color Palette
+  const colors = ['#3B82F6', '#10B981', '#8B5CF6', '#F59E0B', '#EC4899', '#14B8A6', '#F43F5E', '#6366F1']
   
   props.graphData.nodes.forEach(node => {
     const type = node.labels?.find(l => l !== 'Entity') || 'Entity'
@@ -301,18 +285,13 @@ const entityTypes = computed(() => {
   return Object.values(typeMap)
 })
 
-// Format date/time
 const formatDateTime = (dateStr) => {
   if (!dateStr) return ''
   try {
     const date = new Date(dateStr)
     return date.toLocaleString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true 
+      month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit', hour12: true 
     })
   } catch {
     return dateStr
@@ -321,7 +300,7 @@ const formatDateTime = (dateStr) => {
 
 const closeDetailPanel = () => {
   selectedItem.value = null
-  expandedSelfLoops.value = new Set() // Reset expanded state
+  expandedSelfLoops.value = new Set()
 }
 
 let currentSimulation = null
@@ -331,10 +310,7 @@ let linkLabelBgRef = null
 const renderGraph = () => {
   if (!graphSvg.value || !props.graphData) return
   
-  // Stop previous simulation
-  if (currentSimulation) {
-    currentSimulation.stop()
-  }
+  if (currentSimulation) currentSimulation.stop()
   
   const container = graphContainer.value
   const width = container.clientWidth
@@ -352,7 +328,6 @@ const renderGraph = () => {
   
   if (nodesData.length === 0) return
 
-  // Prep data
   const nodeMap = {}
   nodesData.forEach(n => nodeMap[n.uuid] = n)
   
@@ -365,19 +340,13 @@ const renderGraph = () => {
   
   const nodeIds = new Set(nodes.map(n => n.id))
   
-  // Process edge data, count edges between each node pair and assign indices
   const edgePairCount = {}
-  const selfLoopEdges = {} // Self-loop edges grouped by node
-  const tempEdges = edgesData
-    .filter(e => nodeIds.has(e.source_node_uuid) && nodeIds.has(e.target_node_uuid))
+  const selfLoopEdges = {}
+  const tempEdges = edgesData.filter(e => nodeIds.has(e.source_node_uuid) && nodeIds.has(e.target_node_uuid))
   
-  // Count edges between each node pair, collect self-loop edges
   tempEdges.forEach(e => {
     if (e.source_node_uuid === e.target_node_uuid) {
-      // Self-loop - collect into array
-      if (!selfLoopEdges[e.source_node_uuid]) {
-        selfLoopEdges[e.source_node_uuid] = []
-      }
+      if (!selfLoopEdges[e.source_node_uuid]) selfLoopEdges[e.source_node_uuid] = []
       selfLoopEdges[e.source_node_uuid].push({
         ...e,
         source_name: nodeMap[e.source_node_uuid]?.name,
@@ -389,20 +358,15 @@ const renderGraph = () => {
     }
   })
   
-  // Track current edge index for each node pair
   const edgePairIndex = {}
-  const processedSelfLoopNodes = new Set() // Already processed self-loop nodes
-  
+  const processedSelfLoopNodes = new Set()
   const edges = []
   
   tempEdges.forEach(e => {
     const isSelfLoop = e.source_node_uuid === e.target_node_uuid
     
     if (isSelfLoop) {
-      // Self-loop edge - only add one merged self-loop per node
-      if (processedSelfLoopNodes.has(e.source_node_uuid)) {
-        return // Already processed, skip
-      }
+      if (processedSelfLoopNodes.has(e.source_node_uuid)) return
       processedSelfLoopNodes.add(e.source_node_uuid)
       
       const allSelfLoops = selfLoopEdges[e.source_node_uuid]
@@ -420,7 +384,7 @@ const renderGraph = () => {
           source_name: nodeName,
           target_name: nodeName,
           selfLoopCount: allSelfLoops.length,
-          selfLoopEdges: allSelfLoops // Store detailed info for all self-loop edges
+          selfLoopEdges: allSelfLoops
         }
       })
       return
@@ -431,22 +395,13 @@ const renderGraph = () => {
     const currentIndex = edgePairIndex[pairKey] || 0
     edgePairIndex[pairKey] = currentIndex + 1
     
-    // Check if edge direction matches the normalized direction (source UUID < target UUID)
     const isReversed = e.source_node_uuid > e.target_node_uuid
     
-    // Calculate curvature: spread edges apart when multiple, straight line for single edge
     let curvature = 0
     if (totalCount > 1) {
-      // Evenly distribute curvature to ensure clear distinction
-      // Curvature range increases with edge count
       const curvatureRange = Math.min(1.2, 0.6 + totalCount * 0.15)
       curvature = ((currentIndex / (totalCount - 1)) - 0.5) * curvatureRange * 2
-      
-      // If edge direction is reversed from normalized direction, flip curvature
-      // This ensures all edges distribute under the same reference frame, preventing overlap
-      if (isReversed) {
-        curvature = -curvature
-      }
+      if (isReversed) curvature = -curvature
     }
     
     edges.push({
@@ -466,94 +421,44 @@ const renderGraph = () => {
     })
   })
     
-  // Color scale
   const colorMap = {}
   entityTypes.value.forEach(t => colorMap[t.name] = t.color)
-  const getColor = (type) => colorMap[type] || '#999'
+  const getColor = (type) => colorMap[type] || '#94A3B8'
 
-  // Simulation - dynamically adjust node spacing based on edge count
   const simulation = d3.forceSimulation(nodes)
     .force('link', d3.forceLink(edges).id(d => d.id).distance(d => {
-      // Dynamically adjust distance based on edge count between this node pair
-      // Base distance 150, increase by 40 per additional edge
-      const baseDistance = 150
+      const baseDistance = 160
       const edgeCount = d.pairTotal || 1
-      return baseDistance + (edgeCount - 1) * 50
+      return baseDistance + (edgeCount - 1) * 40
     }))
-    .force('charge', d3.forceManyBody().strength(-400))
+    .force('charge', d3.forceManyBody().strength(-450))
     .force('center', d3.forceCenter(width / 2, height / 2))
     .force('collide', d3.forceCollide(50))
-    // Add gravitational pull toward center so isolated node clusters gather in the center area
-    .force('x', d3.forceX(width / 2).strength(0.04))
-    .force('y', d3.forceY(height / 2).strength(0.04))
+    .force('x', d3.forceX(width / 2).strength(0.05))
+    .force('y', d3.forceY(height / 2).strength(0.05))
   
   currentSimulation = simulation
 
   const g = svg.append('g')
   
-  // Zoom
   svg.call(d3.zoom().extent([[0, 0], [width, height]]).scaleExtent([0.1, 4]).on('zoom', (event) => {
     g.attr('transform', event.transform)
   }))
 
-  // Links - use path elements to support curves
   const linkGroup = g.append('g').attr('class', 'links')
   
-  // Calculate curve path
   const getLinkPath = (d) => {
     const sx = d.source.x, sy = d.source.y
     const tx = d.target.x, ty = d.target.y
     
-    // Detect self-loop
     if (d.isSelfLoop) {
-      // Self-loop: draw an arc departing from and returning to the node
       const loopRadius = 30
-      // Start from right side of the node, loop around
-      const x1 = sx + 8  // Start offset
-      const y1 = sy - 4
-      const x2 = sx + 8  // End offset
-      const y2 = sy + 4
-      // Draw self-loop using arc (sweep-flag=1 clockwise)
+      const x1 = sx + 8, y1 = sy - 4, x2 = sx + 8, y2 = sy + 4
       return `M${x1},${y1} A${loopRadius},${loopRadius} 0 1,1 ${x2},${y2}`
     }
     
-    if (d.curvature === 0) {
-      // Straight line
-      return `M${sx},${sy} L${tx},${ty}`
-    }
+    if (d.curvature === 0) return `M${sx},${sy} L${tx},${ty}`
     
-    // Calculate curve control point - dynamically adjust based on edge count and distance
-    const dx = tx - sx, dy = ty - sy
-    const dist = Math.sqrt(dx * dx + dy * dy)
-    // Offset perpendicular to the line direction, proportional to distance, ensuring visible curves
-    // More edges means larger offset ratio
-    const pairTotal = d.pairTotal || 1
-    const offsetRatio = 0.25 + pairTotal * 0.05 // Base 25%, increase by 5% per additional edge
-    const baseOffset = Math.max(35, dist * offsetRatio)
-    const offsetX = -dy / dist * d.curvature * baseOffset
-    const offsetY = dx / dist * d.curvature * baseOffset
-    const cx = (sx + tx) / 2 + offsetX
-    const cy = (sy + ty) / 2 + offsetY
-    
-    return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`
-  }
-  
-  // Calculate curve midpoint (for label positioning)
-  const getLinkMidpoint = (d) => {
-    const sx = d.source.x, sy = d.source.y
-    const tx = d.target.x, ty = d.target.y
-    
-    // Detect self-loop
-    if (d.isSelfLoop) {
-      // Self-loop label position: right side of the node
-      return { x: sx + 70, y: sy }
-    }
-    
-    if (d.curvature === 0) {
-      return { x: (sx + tx) / 2, y: (sy + ty) / 2 }
-    }
-    
-    // Quadratic Bezier curve midpoint at t=0.5
     const dx = tx - sx, dy = ty - sy
     const dist = Math.sqrt(dx * dx + dy * dy)
     const pairTotal = d.pairTotal || 1
@@ -564,7 +469,26 @@ const renderGraph = () => {
     const cx = (sx + tx) / 2 + offsetX
     const cy = (sy + ty) / 2 + offsetY
     
-    // Quadratic Bezier formula B(t) = (1-t)²P0 + 2(1-t)tP1 + t²P2, t=0.5
+    return `M${sx},${sy} Q${cx},${cy} ${tx},${ty}`
+  }
+  
+  const getLinkMidpoint = (d) => {
+    const sx = d.source.x, sy = d.source.y
+    const tx = d.target.x, ty = d.target.y
+    
+    if (d.isSelfLoop) return { x: sx + 70, y: sy }
+    if (d.curvature === 0) return { x: (sx + tx) / 2, y: (sy + ty) / 2 }
+    
+    const dx = tx - sx, dy = ty - sy
+    const dist = Math.sqrt(dx * dx + dy * dy)
+    const pairTotal = d.pairTotal || 1
+    const offsetRatio = 0.25 + pairTotal * 0.05
+    const baseOffset = Math.max(35, dist * offsetRatio)
+    const offsetX = -dy / dist * d.curvature * baseOffset
+    const offsetY = dx / dist * d.curvature * baseOffset
+    const cx = (sx + tx) / 2 + offsetX
+    const cy = (sy + ty) / 2 + offsetY
+    
     const midX = 0.25 * sx + 0.5 * cx + 0.25 * tx
     const midY = 0.25 * sy + 0.5 * cy + 0.25 * ty
     
@@ -574,18 +498,17 @@ const renderGraph = () => {
   const link = linkGroup.selectAll('path')
     .data(edges)
     .enter().append('path')
-    .attr('stroke', '#C0C0C0')
+    .attr('stroke', '#CBD5E1')
     .attr('stroke-width', 1.5)
     .attr('fill', 'none')
     .style('cursor', 'pointer')
     .on('click', (event, d) => {
       event.stopPropagation()
-      // Reset previously selected edge styles
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
+      linkGroup.selectAll('path').attr('stroke', '#CBD5E1').attr('stroke-width', 1.5)
       linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-      linkLabels.attr('fill', '#666')
-      // Highlight currently selected edge
-      d3.select(event.target).attr('stroke', '#3498db').attr('stroke-width', 3)
+      linkLabels.attr('fill', '#64748B')
+      
+      d3.select(event.target).attr('stroke', '#3B82F6').attr('stroke-width', 3)
       
       selectedItem.value = {
         type: 'edge',
@@ -593,24 +516,25 @@ const renderGraph = () => {
       }
     })
 
-  // Link labels background (white background for better text readability)
   const linkLabelBg = linkGroup.selectAll('rect')
     .data(edges)
     .enter().append('rect')
     .attr('fill', 'rgba(255,255,255,0.95)')
-    .attr('rx', 3)
-    .attr('ry', 3)
+    .attr('rx', 4)
+    .attr('ry', 4)
+    .attr('stroke', '#E2E8F0')
+    .attr('stroke-width', 1)
     .style('cursor', 'pointer')
     .style('pointer-events', 'all')
     .style('display', showEdgeLabels.value ? 'block' : 'none')
     .on('click', (event, d) => {
       event.stopPropagation()
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
+      linkGroup.selectAll('path').attr('stroke', '#CBD5E1').attr('stroke-width', 1.5)
       linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-      linkLabels.attr('fill', '#666')
-      // Highlight the corresponding edge
-      link.filter(l => l === d).attr('stroke', '#3498db').attr('stroke-width', 3)
-      d3.select(event.target).attr('fill', 'rgba(52, 152, 219, 0.1)')
+      linkLabels.attr('fill', '#64748B')
+      
+      link.filter(l => l === d).attr('stroke', '#3B82F6').attr('stroke-width', 3)
+      d3.select(event.target).attr('fill', '#EFF6FF')
       
       selectedItem.value = {
         type: 'edge',
@@ -618,27 +542,26 @@ const renderGraph = () => {
       }
     })
 
-  // Link labels
   const linkLabels = linkGroup.selectAll('text')
     .data(edges)
     .enter().append('text')
     .text(d => d.name)
     .attr('font-size', '9px')
-    .attr('fill', '#666')
+    .attr('fill', '#64748B')
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'middle')
     .style('cursor', 'pointer')
     .style('pointer-events', 'all')
-    .style('font-family', 'system-ui, sans-serif')
+    .style('font-family', 'JetBrains Mono, monospace')
     .style('display', showEdgeLabels.value ? 'block' : 'none')
     .on('click', (event, d) => {
       event.stopPropagation()
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
+      linkGroup.selectAll('path').attr('stroke', '#CBD5E1').attr('stroke-width', 1.5)
       linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-      linkLabels.attr('fill', '#666')
-      // Highlight the corresponding edge
-      link.filter(l => l === d).attr('stroke', '#3498db').attr('stroke-width', 3)
-      d3.select(event.target).attr('fill', '#3498db')
+      linkLabels.attr('fill', '#64748B')
+      
+      link.filter(l => l === d).attr('stroke', '#3B82F6').attr('stroke-width', 3)
+      d3.select(event.target).attr('fill', '#1D4ED8')
       
       selectedItem.value = {
         type: 'edge',
@@ -646,68 +569,48 @@ const renderGraph = () => {
       }
     })
   
-  // Save references for external visibility control
   linkLabelsRef = linkLabels
   linkLabelBgRef = linkLabelBg
 
-  // Nodes group
   const nodeGroup = g.append('g').attr('class', 'nodes')
   
-  // Node circles
   const node = nodeGroup.selectAll('circle')
     .data(nodes)
     .enter().append('circle')
-    .attr('r', 10)
+    .attr('r', 12)
     .attr('fill', d => getColor(d.type))
-    .attr('stroke', '#fff')
-    .attr('stroke-width', 2.5)
+    .attr('stroke', '#FFFFFF')
+    .attr('stroke-width', 3)
+    .style('filter', 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))')
     .style('cursor', 'pointer')
     .call(d3.drag()
       .on('start', (event, d) => {
-        // Only record position, do not restart simulation (distinguish click from drag)
-        d.fx = d.x
-        d.fy = d.y
-        d._dragStartX = event.x
-        d._dragStartY = event.y
+        d.fx = d.x; d.fy = d.y
+        d._dragStartX = event.x; d._dragStartY = event.y
         d._isDragging = false
       })
       .on('drag', (event, d) => {
-        // Detect whether a true drag has started (movement exceeds threshold)
         const dx = event.x - d._dragStartX
         const dy = event.y - d._dragStartY
-        const distance = Math.sqrt(dx * dx + dy * dy)
-        
-        if (!d._isDragging && distance > 3) {
-          // First real drag detected, now restart the simulation
+        if (!d._isDragging && Math.sqrt(dx * dx + dy * dy) > 3) {
           d._isDragging = true
           simulation.alphaTarget(0.3).restart()
         }
-        
-        if (d._isDragging) {
-          d.fx = event.x
-          d.fy = event.y
-        }
+        if (d._isDragging) { d.fx = event.x; d.fy = event.y }
       })
       .on('end', (event, d) => {
-        // Only let simulation gradually stop if an actual drag occurred
-        if (d._isDragging) {
-          simulation.alphaTarget(0)
-        }
-        d.fx = null
-        d.fy = null
-        d._isDragging = false
+        if (d._isDragging) simulation.alphaTarget(0)
+        d.fx = null; d.fy = null; d._isDragging = false
       })
     )
     .on('click', (event, d) => {
       event.stopPropagation()
-      // Reset all node styles
-      node.attr('stroke', '#fff').attr('stroke-width', 2.5)
-      linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
-      // Highlight selected node
-      d3.select(event.target).attr('stroke', '#E91E63').attr('stroke-width', 4)
-      // Highlight edges connected to this node
+      node.attr('stroke', '#FFFFFF').attr('stroke-width', 3)
+      linkGroup.selectAll('path').attr('stroke', '#CBD5E1').attr('stroke-width', 1.5)
+      
+      d3.select(event.target).attr('stroke', '#0F172A').attr('stroke-width', 4)
       link.filter(l => l.source.id === d.id || l.target.id === d.id)
-        .attr('stroke', '#E91E63')
+        .attr('stroke', '#0F172A')
         .attr('stroke-width', 2.5)
       
       selectedItem.value = {
@@ -719,70 +622,57 @@ const renderGraph = () => {
     })
     .on('mouseenter', (event, d) => {
       if (!selectedItem.value || selectedItem.value.data?.uuid !== d.rawData.uuid) {
-        d3.select(event.target).attr('stroke', '#333').attr('stroke-width', 3)
+        d3.select(event.target).attr('stroke', '#E2E8F0').attr('stroke-width', 4)
       }
     })
     .on('mouseleave', (event, d) => {
       if (!selectedItem.value || selectedItem.value.data?.uuid !== d.rawData.uuid) {
-        d3.select(event.target).attr('stroke', '#fff').attr('stroke-width', 2.5)
+        d3.select(event.target).attr('stroke', '#FFFFFF').attr('stroke-width', 3)
       }
     })
 
-  // Node Labels
   const nodeLabels = nodeGroup.selectAll('text')
     .data(nodes)
     .enter().append('text')
-    .text(d => d.name.length > 8 ? d.name.substring(0, 8) + '…' : d.name)
-    .attr('font-size', '11px')
-    .attr('fill', '#333')
-    .attr('font-weight', '500')
-    .attr('dx', 14)
+    .text(d => d.name.length > 12 ? d.name.substring(0, 12) + '…' : d.name)
+    .attr('font-size', '12px')
+    .attr('fill', '#0F172A')
+    .attr('font-weight', '700')
+    .attr('dx', 18)
     .attr('dy', 4)
     .style('pointer-events', 'none')
-    .style('font-family', 'system-ui, sans-serif')
+    .style('font-family', 'Plus Jakarta Sans, sans-serif')
 
   simulation.on('tick', () => {
-    // Update curve paths
     link.attr('d', d => getLinkPath(d))
     
-    // Update edge label positions (no rotation, horizontal display is clearer)
     linkLabels.each(function(d) {
       const mid = getLinkMidpoint(d)
-      d3.select(this)
-        .attr('x', mid.x)
-        .attr('y', mid.y)
-        .attr('transform', '') // Remove rotation, keep horizontal
+      d3.select(this).attr('x', mid.x).attr('y', mid.y).attr('transform', '')
     })
     
-    // Update edge label backgrounds
     linkLabelBg.each(function(d, i) {
       const mid = getLinkMidpoint(d)
       const textEl = linkLabels.nodes()[i]
       const bbox = textEl.getBBox()
       d3.select(this)
-        .attr('x', mid.x - bbox.width / 2 - 4)
+        .attr('x', mid.x - bbox.width / 2 - 6)
         .attr('y', mid.y - bbox.height / 2 - 2)
-        .attr('width', bbox.width + 8)
+        .attr('width', bbox.width + 12)
         .attr('height', bbox.height + 4)
-        .attr('transform', '') // Remove rotation
+        .attr('transform', '')
     })
 
-    node
-      .attr('cx', d => d.x)
-      .attr('cy', d => d.y)
-
-    nodeLabels
-      .attr('x', d => d.x)
-      .attr('y', d => d.y)
+    node.attr('cx', d => d.x).attr('cy', d => d.y)
+    nodeLabels.attr('x', d => d.x).attr('y', d => d.y)
   })
   
-  // Click on blank area to close the detail panel
   svg.on('click', () => {
     selectedItem.value = null
-    node.attr('stroke', '#fff').attr('stroke-width', 2.5)
-    linkGroup.selectAll('path').attr('stroke', '#C0C0C0').attr('stroke-width', 1.5)
+    node.attr('stroke', '#FFFFFF').attr('stroke-width', 3)
+    linkGroup.selectAll('path').attr('stroke', '#CBD5E1').attr('stroke-width', 1.5)
     linkLabelBg.attr('fill', 'rgba(255,255,255,0.95)')
-    linkLabels.attr('fill', '#666')
+    linkLabels.attr('fill', '#64748B')
   })
 }
 
@@ -790,49 +680,38 @@ watch(() => props.graphData, () => {
   nextTick(renderGraph)
 }, { deep: true })
 
-// Watch edge label visibility toggle
 watch(showEdgeLabels, (newVal) => {
-  if (linkLabelsRef) {
-    linkLabelsRef.style('display', newVal ? 'block' : 'none')
-  }
-  if (linkLabelBgRef) {
-    linkLabelBgRef.style('display', newVal ? 'block' : 'none')
-  }
+  if (linkLabelsRef) linkLabelsRef.style('display', newVal ? 'block' : 'none')
+  if (linkLabelBgRef) linkLabelBgRef.style('display', newVal ? 'block' : 'none')
 })
 
-const handleResize = () => {
-  nextTick(renderGraph)
-}
+const handleResize = () => nextTick(renderGraph)
 
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-})
-
+onMounted(() => window.addEventListener('resize', handleResize))
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
-  if (currentSimulation) {
-    currentSimulation.stop()
-  }
+  if (currentSimulation) currentSimulation.stop()
 })
 </script>
 
 <style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700;800&display=swap');
+
 .graph-panel {
   position: relative;
   width: 100%;
   height: 100%;
-  background-color: #FAFAFA;
-  background-image: radial-gradient(#D0D0D0 1.5px, transparent 1.5px);
+  background-color: #F8FAFC;
+  background-image: radial-gradient(#CBD5E1 1px, transparent 1px);
   background-size: 24px 24px;
   overflow: hidden;
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 .panel-header {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: 16px 20px;
+  top: 0; left: 0; right: 0;
+  padding: 16px 24px;
   z-index: 10;
   display: flex;
   justify-content: space-between;
@@ -842,105 +721,114 @@ onUnmounted(() => {
 }
 
 .panel-title {
-  font-size: 14px;
-  font-weight: 600;
-  color: #333;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0F172A;
   pointer-events: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
 }
 
 .header-tools {
   pointer-events: auto;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
 }
 
 .tool-btn {
   height: 32px;
   padding: 0 12px;
-  border: 1px solid #E0E0E0;
-  background: #FFF;
-  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   cursor: pointer;
-  color: #666;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-  font-size: 13px;
+  color: #475569;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
 }
 
-.tool-btn:hover {
-  background: #F5F5F5;
-  color: #000;
-  border-color: #CCC;
+.tool-btn:hover:not(:disabled) {
+  background: #F1F5F9;
+  color: #0F172A;
+  border-color: #CBD5E1;
 }
 
-.tool-btn .btn-text {
-  font-size: 12px;
-}
-
-.icon-refresh.spinning {
-  animation: spin 1s linear infinite;
-}
-
+.tool-btn.icon-only { padding: 0 8px; }
+.tool-btn .btn-text { font-size: 12px; font-weight: 600; }
+.icon-refresh.spinning { animation: spin 1s linear infinite; }
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
 
-.graph-container {
-  width: 100%;
-  height: 100%;
-}
-
-.graph-view, .graph-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
+.graph-container { width: 100%; height: 100%; }
+.graph-view, .graph-svg { width: 100%; height: 100%; display: block; }
 
 .graph-state {
   position: absolute;
-  top: 50%;
-  left: 50%;
+  top: 50%; left: 50%;
   transform: translate(-50%, -50%);
   text-align: center;
-  color: #999;
+  color: #94A3B8;
+  background: rgba(255,255,255,0.8);
+  padding: 32px;
+  border-radius: 16px;
+  backdrop-filter: blur(12px);
+  border: 1px solid #E2E8F0;
 }
 
 .empty-icon {
-  font-size: 48px;
   margin-bottom: 16px;
-  opacity: 0.2;
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-/* Entity Types Legend - Bottom Left */
+.state-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  margin: 0;
+}
+
+.loading-spinner {
+  width: 32px; height: 32px;
+  border: 3px solid #E2E8F0;
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 16px;
+}
+
+/* Entity Types Legend */
 .graph-legend {
   position: absolute;
-  bottom: 24px;
-  left: 24px;
-  background: rgba(255,255,255,0.95);
-  padding: 12px 16px;
-  border-radius: 8px;
-  border: 1px solid #EAEAEA;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  bottom: 24px; left: 24px;
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(12px);
+  padding: 16px 20px;
+  border-radius: 12px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
   z-index: 10;
 }
 
 .legend-title {
   display: block;
-  font-size: 11px;
-  font-weight: 600;
-  color: #E91E63;
-  margin-bottom: 10px;
+  font-size: 10px;
+  font-weight: 800;
+  color: #64748B;
+  margin-bottom: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.05em;
 }
 
 .legend-items {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px 16px;
+  gap: 12px 16px;
   max-width: 320px;
 }
 
@@ -949,100 +837,63 @@ onUnmounted(() => {
   align-items: center;
   gap: 6px;
   font-size: 12px;
-  color: #555;
+  font-weight: 600;
+  color: #334155;
 }
 
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-label { white-space: nowrap; }
 
-.legend-label {
-  white-space: nowrap;
-}
-
-/* Edge Labels Toggle - Top Right */
+/* Edge Labels Toggle */
 .edge-labels-toggle {
   position: absolute;
-  top: 60px;
-  right: 20px;
+  top: 64px; right: 24px;
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #FFF;
-  padding: 8px 14px;
-  border-radius: 20px;
-  border: 1px solid #E0E0E0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.9);
+  backdrop-filter: blur(12px);
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.02);
   z-index: 10;
 }
 
-.toggle-switch {
-  position: relative;
-  display: inline-block;
-  width: 40px;
-  height: 22px;
-}
-
-.toggle-switch input {
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-
+.toggle-switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
 .slider {
-  position: absolute;
-  cursor: pointer;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #E0E0E0;
-  border-radius: 22px;
+  position: absolute; cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #E2E8F0;
+  border-radius: 20px;
   transition: 0.3s;
 }
-
 .slider:before {
-  position: absolute;
-  content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
-  bottom: 3px;
+  position: absolute; content: "";
+  height: 14px; width: 14px;
+  left: 3px; bottom: 3px;
   background-color: white;
   border-radius: 50%;
   transition: 0.3s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
 }
+input:checked + .slider { background-color: #3B82F6; }
+input:checked + .slider:before { transform: translateX(16px); }
+.toggle-label { font-size: 11px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.05em; }
 
-input:checked + .slider {
-  background-color: #7B2D8E;
-}
-
-input:checked + .slider:before {
-  transform: translateX(18px);
-}
-
-.toggle-label {
-  font-size: 12px;
-  color: #666;
-}
-
-/* Detail Panel - Right Side */
+/* Detail Panel */
 .detail-panel {
   position: absolute;
-  top: 60px;
-  right: 20px;
-  width: 320px;
+  top: 64px; right: 24px;
+  width: 360px;
   max-height: calc(100% - 100px);
-  background: #FFF;
-  border: 1px solid #EAEAEA;
-  border-radius: 10px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid #E2E8F0;
+  border-radius: 16px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.08);
   overflow: hidden;
-  font-family: 'Noto Sans SC', system-ui, sans-serif;
-  font-size: 13px;
   z-index: 20;
   display: flex;
   flex-direction: column;
@@ -1050,377 +901,146 @@ input:checked + .slider:before {
 
 .detail-panel-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
-  background: #FAFAFA;
-  border-bottom: 1px solid #EEE;
+  padding: 16px 20px;
+  background: #F8FAFC;
+  border-bottom: 1px solid #F1F5F9;
   flex-shrink: 0;
 }
 
-.detail-title {
-  font-weight: 600;
-  color: #333;
-  font-size: 14px;
-}
+.detail-title { font-weight: 800; color: #0F172A; font-size: 13px; text-transform: uppercase; letter-spacing: 0.05em;}
 
 .detail-type-badge {
-  padding: 4px 10px;
-  border-radius: 12px;
-  font-size: 11px;
-  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 800;
   margin-left: auto;
   margin-right: 12px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 .detail-close {
-  background: none;
-  border: none;
-  font-size: 20px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  color: #64748B;
   cursor: pointer;
-  color: #999;
-  line-height: 1;
-  padding: 0;
-  transition: color 0.2s;
+  padding: 4px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  margin-left: auto;
 }
 
-.detail-close:hover {
-  color: #333;
-}
+.detail-close:hover { background: #F1F5F9; color: #0F172A; }
 
-.detail-content {
-  padding: 16px;
-  overflow-y: auto;
-  flex: 1;
-}
+.detail-content { padding: 20px; overflow-y: auto; flex: 1; }
 
 .detail-row {
   margin-bottom: 12px;
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: 8px;
+  align-items: baseline;
 }
 
 .detail-label {
-  color: #888;
-  font-size: 12px;
-  font-weight: 500;
+  color: #64748B;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   min-width: 80px;
 }
 
-.detail-value {
-  color: #333;
-  flex: 1;
-  word-break: break-word;
-}
+.detail-value { color: #0F172A; font-size: 13px; font-weight: 500; flex: 1; word-break: break-word; }
+.detail-value.highlight { font-weight: 700; }
+.detail-value.uuid-text { font-family: 'JetBrains Mono', monospace; font-size: 11px; background: #F1F5F9; padding: 2px 6px; border-radius: 4px; color: #475569; }
+.detail-value.fact-text { line-height: 1.6; color: #334155; padding: 12px; background: #F8FAFC; border-left: 3px solid #3B82F6; border-radius: 0 8px 8px 0; font-size: 12px; }
 
-.detail-value.uuid-text {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 11px;
-  color: #666;
-}
+.detail-section { margin-top: 24px; }
+.section-title { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
 
-.detail-value.fact-text {
-  line-height: 1.5;
-  color: #444;
-}
+.properties-list { display: flex; flex-direction: column; gap: 8px; }
+.property-item { display: flex; font-size: 12px; background: #F8FAFC; padding: 8px 12px; border-radius: 8px; border: 1px solid #E2E8F0; }
+.property-key { color: #64748B; font-weight: 600; min-width: 90px; font-family: 'JetBrains Mono', monospace; }
+.property-value { color: #0F172A; font-weight: 500; flex: 1; }
 
-.detail-section {
-  margin-top: 16px;
-  padding-top: 14px;
-  border-top: 1px solid #F0F0F0;
-}
+.summary-text { line-height: 1.6; color: #334155; font-size: 12px; padding: 12px; background: #F8FAFC; border-radius: 8px; border: 1px solid #E2E8F0; }
 
-.section-title {
-  font-size: 12px;
-  font-weight: 600;
-  color: #666;
-  margin-bottom: 10px;
-}
-
-.properties-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.property-item {
-  display: flex;
-  gap: 8px;
-}
-
-.property-key {
-  color: #888;
-  font-weight: 500;
-  min-width: 90px;
-}
-
-.property-value {
-  color: #333;
-  flex: 1;
-}
-
-.summary-text {
-  line-height: 1.6;
-  color: #444;
-  font-size: 12px;
-}
-
-.labels-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.label-tag {
-  display: inline-block;
-  padding: 4px 12px;
-  background: #F5F5F5;
-  border: 1px solid #E0E0E0;
-  border-radius: 16px;
-  font-size: 11px;
-  color: #555;
-}
-
-.episodes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.episode-tag {
-  display: inline-block;
-  padding: 6px 10px;
-  background: #F8F8F8;
-  border: 1px solid #E8E8E8;
-  border-radius: 6px;
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 10px;
-  color: #666;
-  word-break: break-all;
-}
+.labels-list, .episodes-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.label-tag { display: inline-block; padding: 4px 10px; background: #F1F5F9; border: 1px solid #E2E8F0; border-radius: 6px; font-size: 11px; font-weight: 600; color: #475569; }
+.episode-tag { display: inline-block; padding: 6px 10px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 6px; font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #475569; word-break: break-all; }
 
 /* Edge relation header */
 .edge-relation-header {
-  background: #F8F8F8;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 16px;
+  background: #F8FAFC;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 20px;
   font-size: 13px;
-  font-weight: 500;
-  color: #333;
-  line-height: 1.5;
-  word-break: break-word;
+  font-weight: 600;
+  color: #0F172A;
+  border: 1px solid #E2E8F0;
+  display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
 }
 
 /* Building hint */
 .graph-building-hint {
   position: absolute;
-  bottom: 160px; /* Moved up from 80px */
+  bottom: 120px; 
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(8px);
-  color: #fff;
-  padding: 10px 20px;
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(12px);
+  color: #FFFFFF;
+  padding: 12px 24px;
   border-radius: 30px;
   font-size: 13px;
+  font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 10px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.1);
-  font-weight: 500;
-  letter-spacing: 0.5px;
   z-index: 100;
 }
 
-.memory-icon-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  animation: breathe 2s ease-in-out infinite;
-}
-
-.memory-icon {
-  width: 18px;
-  height: 18px;
-  color: #4CAF50;
-}
+.memory-icon-wrapper { display: flex; align-items: center; justify-content: center; animation: breathe 2s ease-in-out infinite; }
+.memory-icon { width: 18px; height: 18px; color: #10B981; }
 
 @keyframes breathe {
-  0%, 100% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 2px rgba(76, 175, 80, 0.3)); }
-  50% { opacity: 1; transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(76, 175, 80, 0.6)); }
+  0%, 100% { opacity: 0.7; transform: scale(1); filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.3)); }
+  50% { opacity: 1; transform: scale(1.15); filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.6)); }
 }
 
-/* Post-simulation hint styles */
-.graph-building-hint.finished-hint {
-  background: rgba(0, 0, 0, 0.65);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.finished-hint .hint-icon-wrapper {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.finished-hint .hint-icon {
-  width: 18px;
-  height: 18px;
-  color: #FFF;
-}
-
-.finished-hint .hint-text {
-  flex: 1;
-  white-space: nowrap;
-}
-
+.hint-icon { width: 18px; height: 18px; color: #3B82F6; }
+.hint-text { margin-right: 8px; }
 .hint-close-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  background: rgba(255, 255, 255, 0.2);
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  color: #FFF;
-  transition: all 0.2s;
-  margin-left: 8px;
-  flex-shrink: 0;
+  background: rgba(255,255,255,0.1);
+  border: none; border-radius: 50%;
+  width: 24px; height: 24px;
+  display: flex; align-items: center; justify-content: center;
+  color: #FFF; cursor: pointer; transition: all 0.2s;
 }
-
-.hint-close-btn:hover {
-  background: rgba(255, 255, 255, 0.35);
-  transform: scale(1.1);
-}
-
-/* Loading spinner */
-.loading-spinner {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #E0E0E0;
-  border-top-color: #7B2D8E;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 16px;
-}
+.hint-close-btn:hover { background: rgba(255,255,255,0.2); }
 
 /* Self-loop styles */
-.self-loop-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #E8F5E9 0%, #F1F8E9 100%);
-  border: 1px solid #C8E6C9;
-}
+.self-loop-header { background: #EFF6FF; border-color: #BFDBFE; color: #1D4ED8; }
+.self-loop-count { margin-left: auto; font-size: 11px; font-weight: 700; background: #FFFFFF; padding: 2px 8px; border-radius: 12px; color: #2563EB; }
+.self-loop-list { display: flex; flex-direction: column; gap: 8px; }
+.self-loop-item { background: #FFFFFF; border: 1px solid #E2E8F0; border-radius: 8px; overflow: hidden; }
+.self-loop-item-header { display: flex; align-items: center; gap: 8px; padding: 12px; background: #F8FAFC; cursor: pointer; transition: background 0.2s; }
+.self-loop-item-header:hover { background: #F1F5F9; }
+.self-loop-item.expanded .self-loop-item-header { background: #E2E8F0; }
+.self-loop-index { font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 700; color: #64748B; background: #FFFFFF; padding: 2px 6px; border-radius: 4px; }
+.self-loop-name { font-size: 12px; font-weight: 700; color: #0F172A; flex: 1; }
+.self-loop-toggle { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; color: #64748B; }
+.self-loop-item-content { padding: 16px; border-top: 1px solid #E2E8F0; }
 
-.self-loop-count {
-  margin-left: auto;
-  font-size: 11px;
-  color: #666;
-  background: rgba(255,255,255,0.8);
-  padding: 2px 8px;
-  border-radius: 10px;
-}
-
-.self-loop-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.self-loop-item {
-  background: #FAFAFA;
-  border: 1px solid #EAEAEA;
-  border-radius: 8px;
-}
-
-.self-loop-item-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  background: #F5F5F5;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.self-loop-item-header:hover {
-  background: #EEEEEE;
-}
-
-.self-loop-item.expanded .self-loop-item-header {
-  background: #E8E8E8;
-}
-
-.self-loop-index {
-  font-size: 10px;
-  font-weight: 600;
-  color: #888;
-  background: #E0E0E0;
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.self-loop-name {
-  font-size: 12px;
-  font-weight: 500;
-  color: #333;
-  flex: 1;
-}
-
-.self-loop-toggle {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: 600;
-  color: #888;
-  background: #E0E0E0;
-  border-radius: 4px;
-  transition: all 0.2s;
-}
-
-.self-loop-item.expanded .self-loop-toggle {
-  background: #D0D0D0;
-  color: #666;
-}
-
-.self-loop-item-content {
-  padding: 12px;
-  border-top: 1px solid #EAEAEA;
-}
-
-.self-loop-item-content .detail-row {
-  margin-bottom: 8px;
-}
-
-.self-loop-item-content .detail-label {
-  font-size: 11px;
-  min-width: 60px;
-}
-
-.self-loop-item-content .detail-value {
-  font-size: 12px;
-}
-
-.self-loop-episodes {
-  margin-top: 8px;
-}
-
-.episodes-list.compact {
-  flex-direction: row;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.episode-tag.small {
-  padding: 3px 6px;
-  font-size: 9px;
-}
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 2px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
 </style>

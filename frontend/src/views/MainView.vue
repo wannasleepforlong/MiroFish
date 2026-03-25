@@ -3,7 +3,7 @@
     <!-- Header -->
     <header class="app-header">
       <div class="header-left">
-        <div class="brand" @click="router.push('/')">MIROFISH</div>
+        <div class="brand" @click="router.push('/')">Prophesize AI</div>
       </div>
       
       <div class="header-center">
@@ -30,9 +30,6 @@
           <span class="dot"></span>
           {{ statusText }}
         </span>
-        <button class="lang-toggle" @click="toggleLang">
-          {{ locale === 'en' ? '中文' : 'EN' }}
-        </button>
       </div>
     </header>
 
