@@ -19,12 +19,6 @@
         <a class="nav-link" @click.prevent="scrollTo('history')">History</a>
       </div>
       <div class="nav-right">
-        <button class="lang-toggle" @click="toggleLang">
-          {{ locale === 'en' ? '中文' : 'EN' }}
-        </button>
-        <a href="https://github.com/666ghj/MiroFish" target="_blank" class="github-btn">
-          Visit GitHub ↗
-        </a>
       </div>
     </nav>
 
