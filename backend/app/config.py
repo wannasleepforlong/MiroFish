@@ -108,7 +108,7 @@ class Config:
     # ------------------------------------------------------------------ #
     MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50 MB
     UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), '../uploads')
-    ALLOWED_EXTENSIONS = {'pdf', 'md', 'txt', 'markdown'}
+    ALLOWED_EXTENSIONS = {'pdf', 'md', 'txt', 'markdown', 'xml'}
 
     # ------------------------------------------------------------------ #
     #  Text processing settings                                            #

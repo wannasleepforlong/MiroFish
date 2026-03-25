@@ -252,7 +252,7 @@
             @drop.prevent="handleDrop"
             @click="triggerFileInput"
           >
-            <input ref="fileInput" type="file" multiple accept=".pdf,.md,.txt"
+            <input ref="fileInput" type="file" multiple accept=".pdf,.md,.txt,.xml"
               @change="handleFileSelect" style="display:none" :disabled="loading"/>
             <div v-if="files.length === 0" class="upload-placeholder">
               <div class="upload-cloud">
@@ -269,6 +269,7 @@
                 <span class="fmt-badge pdf">PDF</span>
                 <span class="fmt-badge md">.MD</span>
                 <span class="fmt-badge txt">TXT</span>
+                <span class="fmt-badge xml">.XML</span>
               </div>
             </div>
             <div v-else class="file-list">
@@ -416,7 +417,7 @@ const handleDrop = (e) => {
 }
 const addFiles = (newFiles) => {
   files.value.push(...newFiles.filter(f =>
-    ['pdf','md','txt'].includes(f.name.split('.').pop().toLowerCase())
+    ['pdf','md','txt','xml'].includes(f.name.split('.').pop().toLowerCase())
   ))
 }
 const removeFile = (i) => files.value.splice(i, 1)
@@ -885,6 +886,7 @@ const verifySimulationFit = async () => {
 .fmt-badge.pdf { background: #fee2e2; color: #dc2626; }
 .fmt-badge.md { background: #ede9fe; color: #7c3aed; }
 .fmt-badge.txt { background: #fef9c3; color: #d97706; }
+.fmt-badge.xml { background: #dbeafe; color: #2563eb; }
 
 .file-list { width: 100%; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .file-item {

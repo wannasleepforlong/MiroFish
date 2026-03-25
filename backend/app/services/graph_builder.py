@@ -19,6 +19,7 @@ from ..utils.zep_paging import fetch_all_nodes, fetch_all_edges
 from .text_processor import TextProcessor
 from .live_news_fetcher import LiveDataFetcher
 from ..utils.llm_client import LLMClient
+import re
 
 
 @dataclass
@@ -226,11 +227,39 @@ class GraphBuilderService:
             if attr_name.lower() in RESERVED_NAMES:
                 return f"entity_{attr_name}"
             return attr_name
-        
+
+        def _fix_pascal_case(name: str) -> str:
+            """Convert name to PascalCase format (required by Zep API for entity types)"""
+            # Replace non-alphanumeric with spaces, split, capitalize each word
+            cleaned = re.sub(r'[^a-zA-Z0-9]', ' ', name)
+            words = cleaned.split()
+            if not words:
+                return name
+            return ''.join(w.capitalize() for w in words)
+
+        def _is_valid_pascal_case(name: str) -> bool:
+            """Check if name is valid PascalCase (starts with uppercase, alphanumeric only)"""
+            return bool(re.match(r'^[A-Z][A-Za-z0-9]*$', name))
+
+        def _fix_screaming_snake_case(name: str) -> str:
+            """Convert name to SCREAMING_SNAKE_CASE format (required by Zep API for edge types)"""
+            # Replace non-alphanumeric with underscores, uppercase
+            cleaned = re.sub(r'[^a-zA-Z0-9]+', '_', name)
+            return cleaned.upper().strip('_')
+
+        def _is_valid_screaming_snake_case(name: str) -> bool:
+            """Check if name is valid SCREAMING_SNAKE_CASE (all uppercase with underscores)"""
+            return bool(re.match(r'^[A-Z][A-Z0-9]*(_[A-Z][A-Z0-9]*)*$', name))
+
         # 动态创建实体类型
         entity_types = {}
         for entity_def in ontology.get("entity_types", []):
             name = entity_def["name"]
+            # Fix PascalCase if needed (Zep requires PascalCase format)
+            if not _is_valid_pascal_case(name):
+                original = name
+                name = _fix_pascal_case(name)
+                print(f"  [FIX] Converting entity type '{original}' -> '{name}'")
             description = entity_def.get("description", f"A {name} entity.")
             
             # 创建属性字典和类型注解（Pydantic v2 需要）
@@ -255,6 +284,12 @@ class GraphBuilderService:
         edge_definitions = {}
         for edge_def in ontology.get("edge_types", []):
             name = edge_def["name"]
+            # Edge types should be SCREAMING_SNAKE_CASE (e.g., ADVOCATES_FOR)
+            # The LLM already generates them correctly - just validate
+            if not _is_valid_screaming_snake_case(name):
+                original = name
+                name = _fix_screaming_snake_case(name)
+                print(f"  [FIX] Converting edge type '{original}' -> '{name}'")
             description = edge_def.get("description", f"A {name} relationship.")
             
             # 创建属性字典和类型注解
@@ -278,10 +313,17 @@ class GraphBuilderService:
             # 构建source_targets
             source_targets = []
             for st in edge_def.get("source_targets", []):
+                source = st.get("source", "Entity")
+                target = st.get("target", "Entity")
+                # Fix PascalCase for source and target entity types
+                if not _is_valid_pascal_case(source):
+                    source = _fix_pascal_case(source)
+                if not _is_valid_pascal_case(target):
+                    target = _fix_pascal_case(target)
                 source_targets.append(
                     EntityEdgeSourceTarget(
-                        source=st.get("source", "Entity"),
-                        target=st.get("target", "Entity")
+                        source=source,
+                        target=target
                     )
                 )
             
