@@ -99,11 +99,31 @@ class FileParser:
     
     @staticmethod
     def _extract_from_pdf(file_path: str) -> str:
-        """Extract text from a PDF file."""
+        """
+        Extract text from a PDF file.
+        
+        Tries Mistral OCR first for best quality markdown output.
+        Falls back to PyMuPDF if Mistral fails (no API key, network error, etc.)
+        """
+        from ..utils.logger import get_logger
+        logger = get_logger('mirofish.file_parser')
+        
+        # Try Mistral OCR first for better quality
+        try:
+            result = FileParser._extract_from_pdf_mistral(file_path)
+            logger.info("PDF extracted using Mistral OCR (high quality markdown)")
+            # Mistral succeeded - return result
+            return result
+        except Exception as e:
+            logger.warning(f"Mistral OCR failed, falling back to PyMuPDF: {e}")
+        
+        # Fall back to PyMuPDF
         try:
             import fitz  # PyMuPDF
         except ImportError:
             raise ImportError("PyMuPDF is required: pip install PyMuPDF")
+        
+        logger.info("PDF extracted using PyMuPDF (fallback mode)")
         
         text_parts = []
         with fitz.open(file_path) as doc:
@@ -113,6 +133,73 @@ class FileParser:
                     text_parts.append(text)
         
         return "\n\n".join(text_parts)
+    
+    @staticmethod
+    def _extract_from_pdf_mistral(file_path: str) -> str:
+        """
+        Extract text from PDF using Mistral OCR API.
+        Returns markdown-formatted text for better quality.
+        
+        Raises:
+            ImportError: If mistralai package not installed
+            ValueError: If API key not configured
+            Exception: If API call fails
+        """
+        try:
+            # Try v2.x import first (mistralai>=2.0.0)
+            from mistralai.client import Mistral
+        except ImportError:
+            try:
+                # Fall back to v1.x import (mistralai<2.0.0)
+                from mistralai import Mistral
+            except ImportError:
+                raise ImportError("mistralai not installed: pip install mistralai")
+        
+        # Get API key from environment or config
+        api_key = os.environ.get('MISTRAL_API_KEY', '')
+        if not api_key:
+            # Try to read from .env file in project root
+            # file_parser.py is at E:/MiroFish/backend/app/utils/file_parser.py
+            # .env is at E:/MiroFish/.env
+            env_path = "E:/MiroFish/.env"
+            if os.path.exists(env_path):
+                with open(env_path) as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('MISTRAL_API_KEY'):
+                            if '=' in line:
+                                parts = line.split('=', 1)
+                                if len(parts) > 1:
+                                    api_key = parts[1].strip().strip('"').strip("'").strip()
+                                    break
+        
+        if not api_key:
+            raise ValueError("MISTRAL_API_KEY not configured")
+        
+        client = Mistral(api_key=api_key)
+        
+        # Upload file - use correct API for mistralai version
+        with open(file_path, "rb") as f:
+            uploaded = client.files.upload(
+                file={"file_name": os.path.basename(file_path), "content": f},
+                purpose="ocr"
+            )
+        
+        # Get signed URL
+        signed_url = client.files.get_signed_url(file_id=uploaded.id)
+        
+        # Process with OCR
+        response = client.ocr.process(
+            model="mistral-ocr-latest",
+            document={"type": "document_url", "document_url": signed_url.url}
+        )
+        
+        # Extract markdown from all pages
+        pages_md = []
+        for page in response.pages:
+            pages_md.append(page.markdown)
+        
+        return "\n\n".join(pages_md)
     
     @staticmethod
     def _extract_from_md(file_path: str) -> str:
