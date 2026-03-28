@@ -185,10 +185,12 @@ class OasisProfileGenerator:
         zep_api_key: Optional[str] = None,
         graph_id: Optional[str] = None,
         language: str = "zh",
-        project_id: Optional[str] = None
+        project_id: Optional[str] = None,
+        supabase_user_id: Optional[str] = None
     ):
         self.language = language
         self.project_id = project_id
+        self.supabase_user_id = supabase_user_id
         
         # Initialize LLM clients
         self.clients = []
@@ -592,7 +594,8 @@ class OasisProfileGenerator:
                         input_tokens=response.usage.prompt_tokens if hasattr(response, 'usage') else 0,
                         output_tokens=response.usage.completion_tokens if hasattr(response, 'usage') else 0,
                         project_id=project_id,
-                        simulation_id=None
+                        simulation_id=None,
+                        user_id=self.supabase_user_id
                     )
                 
                 content = response.choices[0].message.content

@@ -56,7 +56,8 @@ class LLMCostTracker:
         input_tokens: int,
         output_tokens: int,
         project_id: Optional[str] = None,
-        simulation_id: Optional[str] = None
+        simulation_id: Optional[str] = None,
+        user_id: Optional[str] = None       
     ) -> Dict[str, Any]:
         """
         Track an LLM API call
@@ -94,7 +95,8 @@ class LLMCostTracker:
                 "output_tokens": output_tokens,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "project_id": project_id,
-                "simulation_id": simulation_id
+                "simulation_id": simulation_id,
+                "user_id": user_id  
             }
             
             response = self._supabase.table("llm_usage").insert(record).execute()

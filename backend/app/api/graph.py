@@ -417,7 +417,8 @@ def generate_ontology():
 
         # Generate the ontology.
         logger.info("Calling the LLM to generate the ontology...")
-        generator = OntologyGenerator(language=language)
+        user_id = request.headers.get("X-User-Id")
+        generator = OntologyGenerator(language=language, user_id=user_id)
         ontology = generator.generate(
             document_texts=document_texts,
             simulation_requirement=simulation_requirement,

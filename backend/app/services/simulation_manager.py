@@ -82,6 +82,7 @@ class SimulationState:
     
     # Error information
     error: Optional[str] = None
+    user_id: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Full state dictionary (internal use)"""
@@ -108,6 +109,7 @@ class SimulationState:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "error": self.error,
+            "user_id": self.user_id,
         }
     
     def to_simple_dict(self) -> Dict[str, Any]:
@@ -207,6 +209,7 @@ class SimulationManager:
             created_at=data.get("created_at", datetime.now().isoformat()),
             updated_at=data.get("updated_at", datetime.now().isoformat()),
             error=data.get("error"),
+            user_id=data.get('user_id'),
         )
         
         self._simulations[simulation_id] = state
@@ -221,6 +224,7 @@ class SimulationManager:
         enable_linkedin: bool = True,
         discover_related_entities: bool = False,
         custom_entities: Optional[List[Dict[str, str]]] = None,
+        user_id: Optional[str] = None,
     ) -> SimulationState:
         """
         Create a new simulation
@@ -250,6 +254,7 @@ class SimulationManager:
             discover_related_entities=discover_related_entities,
             custom_entities=custom_entities or [],
             status=SimulationStatus.CREATED,
+            user_id=user_id,
         )
         
         self._save_simulation_state(state)
@@ -583,7 +588,8 @@ Return format:
         custom_entities: Optional[List[Dict[str, str]]] = None,
         progress_callback: Optional[callable] = None,
         parallel_profile_count: int = 3,
-        language: str = "zh"
+        language: str = "zh",
+        user_id: Optional[str] = None
     ) -> SimulationState:
         """
         Prepare simulation environment (fully automated)
@@ -724,7 +730,7 @@ Return format:
                 )
             
             # Pass graph_id to enable Zep retrieval for richer context
-            generator = OasisProfileGenerator(graph_id=state.graph_id, language=language)
+            generator = OasisProfileGenerator(graph_id=state.graph_id, language=language, supabase_user_id=user_id)            
             
             def profile_progress(current, total, msg):
                 if progress_callback:
@@ -812,7 +818,7 @@ Return format:
                     total=3
                 )
             
-            config_generator = SimulationConfigGenerator(language=language)
+            config_generator = SimulationConfigGenerator(language=language, user_id=user_id)
             
             if progress_callback:
                 progress_callback(

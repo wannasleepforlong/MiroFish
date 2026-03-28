@@ -32,8 +32,10 @@ class LLMClient:
         self,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
-        model: Optional[str] = None
+        model: Optional[str] = None,
+        user_id: Optional[str] = None
     ):
+        self.user_id = user_id
         # Allow explicit override for a single client
         if api_key or base_url or model:
             self.api_key = api_key or Config.LLM_API_KEY
@@ -138,7 +140,8 @@ class LLMClient:
                 input_tokens=response.usage.prompt_tokens,
                 output_tokens=response.usage.completion_tokens,
                 project_id=project_id,
-                simulation_id=simulation_id
+                simulation_id=simulation_id,
+                user_id=self.user_id
             )
         
         return content
@@ -205,7 +208,8 @@ class LLMClient:
         input_tokens: int,
         output_tokens: int,
         project_id: Optional[str] = None,
-        simulation_id: Optional[str] = None
+        simulation_id: Optional[str] = None,
+        user_id: Optional[str] = None 
     ):
         """Track LLM token usage to Supabase"""
         try:
@@ -218,7 +222,8 @@ class LLMClient:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     project_id=project_id,
-                    simulation_id=simulation_id
+                    simulation_id=simulation_id,
+                    user_id=user_id or self.user_id
                 )
                 if not result.get("success"):
                     logger.debug(f"Token tracking: {result.get('error')}")

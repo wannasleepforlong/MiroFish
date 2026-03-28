@@ -226,10 +226,12 @@ class SimulationConfigGenerator:
     
     def __init__(
         self,
+        user_id: Optional[str] = None,
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         model_name: Optional[str] = None,
         language: str = "zh"
+       
     ):
         self.language = language
         self.api_key = api_key
@@ -240,7 +242,8 @@ class SimulationConfigGenerator:
         self.llm = LLMClient(
             api_key=self.api_key,
             base_url=self.base_url,
-            model=self.model_name
+            model=self.model_name,
+            user_id=user_id
         )
     
     def generate_config(

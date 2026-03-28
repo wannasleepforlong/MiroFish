@@ -162,10 +162,11 @@ class OntologyGenerator:
     Analyzes text content and generates entity and relationship type definitions
     """
     
-    def __init__(self, llm_client: Optional[LLMClient] = None, language: str = "zh"):
+    def __init__(self, llm_client: Optional[LLMClient] = None, language: str = "zh", user_id: Optional[str] = None):
         # For ontology generation, we explicitly use the legacy single-LLM config
         # to ensure stability and avoid random provider switching.
         self.llm_client = llm_client or LLMClient(
+            user_id=user_id,
             api_key=Config.LLM_API_KEY,
             base_url=Config.LLM_BASE_URL,
             model=Config.LLM_MODEL_NAME

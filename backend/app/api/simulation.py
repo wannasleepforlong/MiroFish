@@ -200,7 +200,7 @@ def create_simulation():
     """
     try:
         data = request.get_json() or {}
-
+        user_id = request.headers.get("X-User-Id")
         project_id = data.get('project_id')
         if not project_id:
             return jsonify({
@@ -231,6 +231,7 @@ def create_simulation():
             enable_linkedin=data.get('enable_linkedin', True),
             discover_related_entities=data.get('discover_related_entities', False),
             custom_entities=data.get('custom_entities', []),
+            user_id=user_id,
         )
 
         return jsonify({
@@ -427,7 +428,7 @@ def prepare_simulation():
 
     try:
         data = request.get_json() or {}
-
+        user_id = request.headers.get("X-User-Id")
         simulation_id = data.get('simulation_id')
         if not simulation_id:
             return jsonify({
@@ -612,7 +613,8 @@ def prepare_simulation():
                     custom_entities=custom_entities,
                     progress_callback=progress_callback,
                     parallel_profile_count=parallel_profile_count,
-                    language=language
+                    language=language,
+                    user_id=user_id
                 )
 
                 # Mark the task complete.
