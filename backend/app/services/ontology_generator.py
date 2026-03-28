@@ -105,6 +105,7 @@ B. **Specific types (8 types, designed based on text content)**:
 - Quantity: 6-10
 - Relationships should reflect real connections in social media interactions
 - Ensure relationship source_targets cover the entity types you defined
+- **IMPORTANT**: Each edge type must have MAXIMUM 10 source_targets (Zep API limit)
 
 ### 3. Attribute Design
 
