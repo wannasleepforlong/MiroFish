@@ -17,8 +17,10 @@
         <a class="nav-link" @click.prevent="scrollTo('workflow')">Workflow</a>
         <a class="nav-link" @click.prevent="scrollTo('simulation')">Simulation</a>
         <a class="nav-link" @click.prevent="scrollTo('history')">History</a>
+        <a class="nav-link" @click.prevent="router.push('/dashboard')">Dashboard</a>
       </div>
       <div class="nav-right">
+        <button v-if="authUser" class="logout-btn" @click="handleLogout">Sign out</button>
       </div>
     </nav>
 
@@ -377,6 +379,9 @@ import HistoryDatabase from '../components/HistoryDatabase.vue'
 import { assessSimulationFit } from '../api/graph'
 
 const router = useRouter()
+import { getUser, logout } from '../store/auth'
+const authUser = getUser()
+const handleLogout = async () => { await logout(); router.push('/login') }
 const { t, locale } = useI18n()
 
 const toggleLang = () => {
@@ -1043,4 +1048,13 @@ const verifySimulationFit = async () => {
   .launch-actions { flex-direction: column; }
   .verify-fit-btn { width: 100%; }
 }
+
+.logout-btn {
+  border: 1px solid #e5e7eb; background: transparent;
+  padding: 7px 16px; border-radius: 8px;
+  font-size: 0.82rem; font-weight: 600;
+  cursor: pointer; transition: all 0.2s; color: #374151;
+  font-family: 'DM Sans', sans-serif;
+}
+.logout-btn:hover { border-color: #ef4444; color: #ef4444; }
 </style>

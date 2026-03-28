@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { getUserId } from '../store/auth'
 
 // Create the shared axios instance.
 const service = axios.create({
@@ -9,9 +10,15 @@ const service = axios.create({
   }
 })
 
+
 // Request interceptor
 service.interceptors.request.use(
   config => {
+    // Attach logged-in user's ID to every request
+    const userId = getUserId()
+    if (userId) {
+      config.headers['X-User-Id'] = userId
+    }
     return config
   },
   error => {
@@ -26,9 +33,11 @@ service.interceptors.response.use(
     const res = response.data
     
     // Treat explicit non-success responses as errors.
+    // Treat explicit non-success responses as errors.
     if (!res.success && res.success !== undefined) {
-      console.error('API Error:', res.error || res.message || 'Unknown error')
-      return Promise.reject(new Error(res.error || res.message || 'Error'))
+      const errorMsg = res.error || res.data?.error || res.message || res.data?.message || 'Unknown error'
+      console.error('API Error:', errorMsg)
+      return Promise.reject(new Error(errorMsg))
     }
     
     return res

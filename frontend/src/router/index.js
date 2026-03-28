@@ -5,6 +5,9 @@ import SimulationView from '../views/SimulationView.vue'
 import SimulationRunView from '../views/SimulationRunView.vue'
 import ReportView from '../views/ReportView.vue'
 import InteractionView from '../views/InteractionView.vue'
+import Login from '../views/Login.vue'
+import Dashboard from '../views/Dashboard.vue'
+import authState, { initAuth, getUserId } from '../store/auth'
 
 const routes = [
   {
@@ -41,12 +44,35 @@ const routes = [
     name: 'Interaction',
     component: InteractionView,
     props: true
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: Login
+  },
+  {
+    path: '/dashboard',
+    name: 'Dashboard',
+    component: Dashboard,
+    meta: { requiresAuth: true }
   }
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes
+})
+
+// Init auth on app start
+initAuth()
+
+// Route guard — redirect to login if not authenticated
+router.beforeEach((to, _from, next) => {
+  if (to.meta.requiresAuth && !authState.user) {
+    next({ name: 'Login' })
+  } else {
+    next()
+  }
 })
 
 export default router

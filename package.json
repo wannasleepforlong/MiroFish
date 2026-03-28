@@ -19,6 +19,7 @@
   },
   "license": "AGPL-3.0",
   "dependencies": {
+    "@supabase/supabase-js": "^2.100.1",
     "vue-i18n": "^11.3.0"
   }
 }
